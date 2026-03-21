@@ -4,6 +4,7 @@ members = [
     "crates/browsync-core",
     "crates/browsync-cli",
     "crates/browsync-daemon",
+    "crates/browsync-app",
 ]
 
 [workspace.package]

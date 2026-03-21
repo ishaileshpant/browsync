@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>browsync</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #09090b; --bg-s: #111113; --bg-el: #18181b;
+    --text: #f4f4f5; --text-s: #a1a1aa; --text-m: #71717a;
+    --accent: #3b82f6; --accent-bg: #1e3a5f;
+    --green: #22c55e; --amber: #eab308; --red: #ef4444;
+    --border: #27272a; --border-h: #3f3f46;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Inter', -apple-system, sans-serif;
+    --r: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; -webkit-font-smoothing: antialiased; }
+
+  /* Titlebar drag region */
+  .titlebar { height: 38px; background: var(--bg-s); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 1rem; -webkit-app-region: drag; flex-shrink: 0; }
+  .titlebar span { font-size: .8rem; color: var(--text-m); font-weight: 500; }
+
+  /* Layout */
+  .app { display: flex; flex: 1; overflow: hidden; }
+
+  /* Sidebar */
+  .sidebar { width: 200px; background: var(--bg-s); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+  .sidebar-nav { flex: 1; padding: .5rem; }
+  .nav-item { display: flex; align-items: center; gap: .6rem; padding: .55rem .75rem; border-radius: 6px; cursor: pointer; font-size: .85rem; color: var(--text-s); transition: all .15s; border: none; background: none; width: 100%; text-align: left; font-family: var(--sans); }
+  .nav-item:hover { background: var(--bg-el); color: var(--text); }
+  .nav-item.active { background: var(--accent-bg); color: var(--accent); font-weight: 500; }
+  .nav-item .icon { font-size: 1rem; width: 20px; text-align: center; }
+  .sidebar-footer { padding: .75rem; border-top: 1px solid var(--border); }
+  .stats-line { font-size: .75rem; color: var(--text-m); line-height: 1.7; }
+
+  /* Main content */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Toolbar */
+  .toolbar { padding: .6rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: .75rem; flex-shrink: 0; background: var(--bg-s); }
+  .search-box { flex: 1; display: flex; align-items: center; background: var(--bg-el); border: 1px solid var(--border); border-radius: 6px; padding: 0 .7rem; }
+  .search-box input { flex: 1; background: none; border: none; color: var(--text); font-size: .85rem; padding: .5rem .4rem; outline: none; font-family: var(--sans); }
+  .search-box input::placeholder { color: var(--text-m); }
+  .search-box .search-icon { color: var(--text-m); font-size: .85rem; }
+  .toolbar-btn { background: var(--accent); color: white; border: none; padding: .45rem .9rem; border-radius: 6px; font-size: .82rem; font-weight: 500; cursor: pointer; font-family: var(--sans); white-space: nowrap; }
+  .toolbar-btn:hover { filter: brightness(1.1); }
+  .toolbar-btn.secondary { background: var(--bg-el); color: var(--text-s); border: 1px solid var(--border); }
+  .toolbar-btn.secondary:hover { border-color: var(--border-h); color: var(--text); }
+
+  /* Content area */
+  .content { flex: 1; overflow-y: auto; padding: 1rem; }
+  .content::-webkit-scrollbar { width: 6px; }
+  .content::-webkit-scrollbar-track { background: transparent; }
+  .content::-webkit-scrollbar-thumb { background: var(--border-h); border-radius: 3px; }
+
+  /* Browser filter pills */
+  .filters { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .filter-pill { padding: .3rem .65rem; border-radius: 999px; border: 1px solid var(--border); background: none; color: var(--text-s); font-size: .75rem; cursor: pointer; font-family: var(--sans); }
+  .filter-pill.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+  .filter-pill:hover { border-color: var(--border-h); }
+
+  /* Data table */
+  .data-table { width: 100%; border-collapse: collapse; }
+  .data-table th { text-align: left; padding: .5rem .6rem; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-m); border-bottom: 1px solid var(--border); font-weight: 500; position: sticky; top: 0; background: var(--bg); }
+  .data-table td { padding: .5rem .6rem; border-bottom: 1px solid var(--border); font-size: .85rem; vertical-align: middle; }
+  .data-table tr:hover td { background: var(--bg-s); }
+  .data-table .tag { font-family: var(--mono); font-size: .75rem; color: var(--amber); font-weight: 500; }
+  .data-table .url { color: var(--text-m); font-family: var(--mono); font-size: .78rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .data-table .title-cell { max-width: 350px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .data-table .folder { color: var(--text-m); font-size: .78rem; }
+  .data-table .visits { font-family: var(--mono); color: var(--green); font-size: .78rem; text-align: right; }
+  .data-table .time { color: var(--text-m); font-size: .78rem; white-space: nowrap; }
+  .data-table .actions { text-align: right; }
+  .data-table .open-btn { background: none; border: 1px solid var(--border); color: var(--text-m); padding: .2rem .5rem; border-radius: 4px; font-size: .72rem; cursor: pointer; font-family: var(--sans); }
+  .data-table .open-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Cards for dashboard */
+  .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .card { background: var(--bg-s); border: 1px solid var(--border); border-radius: var(--r); padding: 1rem 1.25rem; }
+  .card .label { font-size: .75rem; color: var(--text-m); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
+  .card .value { font-size: 1.5rem; font-weight: 700; }
+  .card .sub { font-size: .78rem; color: var(--text-s); margin-top: .25rem; }
+
+  /* Browser list for detect/import */
+  .browser-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .75rem; }
+  .browser-card { background: var(--bg-s); border: 1px solid var(--border); border-radius: var(--r); padding: 1rem; display: flex; flex-direction: column; gap: .5rem; }
+  .browser-card .name { font-weight: 600; font-size: .95rem; }
+  .browser-card .status { font-size: .78rem; }
+  .browser-card .status.active { color: var(--green); }
+  .browser-card .status.inactive { color: var(--text-m); }
+  .browser-card .import-btn { background: var(--accent); color: white; border: none; padding: .35rem .7rem; border-radius: 5px; font-size: .78rem; cursor: pointer; font-family: var(--sans); align-self: flex-start; }
+  .browser-card .import-btn:disabled { background: var(--bg-el); color: var(--text-m); cursor: default; }
+  .browser-card .import-btn:hover:not(:disabled) { filter: brightness(1.1); }
+
+  /* Sync log */
+  .sync-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  .sync-table td { padding: .4rem .6rem; border-bottom: 1px solid var(--border); }
+
+  /* Auth table */
+  .auth-domain { font-family: var(--mono); font-size: .82rem; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 1rem; right: 1rem; background: var(--bg-el); border: 1px solid var(--border); border-radius: var(--r); padding: .6rem 1rem; font-size: .82rem; color: var(--text); box-shadow: 0 4px 12px rgba(0,0,0,.4); transform: translateY(100px); opacity: 0; transition: all .3s; z-index: 999; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 3rem; color: var(--text-m); }
+  .empty p { margin-bottom: 1rem; }
+
+  /* Loading */
+  .loading { text-align: center; padding: 2rem; color: var(--text-m); }
+</style>
+</head>
+<body>
+
+<div class="titlebar"><span>browsync</span></div>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-nav">
+      <button class="nav-item active" onclick="showView('bookmarks')"><span class="icon">&#x2605;</span> Bookmarks</button>
+      <button class="nav-item" onclick="showView('history')"><span class="icon">&#x25F7;</span> History</button>
+      <button class="nav-item" onclick="showView('search')"><span class="icon">&#x2315;</span> Search</button>
+      <button class="nav-item" onclick="showView('import')"><span class="icon">&#x21E9;</span> Import</button>
+      <button class="nav-item" onclick="showView('auth')"><span class="icon">&#x26BF;</span> Auth</button>
+      <button class="nav-item" onclick="showView('dashboard')"><span class="icon">&#x25A3;</span> Dashboard</button>
+    </div>
+    <div class="sidebar-footer">
+      <div class="stats-line" id="sidebar-stats">Loading...</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">&#x2315;</span>
+        <input type="text" id="search-input" placeholder="Search bookmarks and history..." onkeyup="handleSearch(event)">
+      </div>
+      <button class="toolbar-btn secondary" onclick="exportDialog()">Export</button>
+    </div>
+
+    <div class="content" id="content">
+      <div class="loading">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const { invoke } = window.__TAURI__.core;
+
+let currentView = 'bookmarks';
+let browserFilter = null;
+let allBookmarks = [];
+let allHistory = [];
+
+// --- Views ---
+
+async function showView(view) {
+  currentView = view;
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  event?.target?.closest?.('.nav-item')?.classList?.add?.('active') ||
+    document.querySelector(`.nav-item[onclick*="${view}"]`)?.classList?.add('active');
+
+  const el = document.getElementById('content');
+  el.innerHTML = '<div class="loading">Loading...</div>';
+
+  switch (view) {
+    case 'bookmarks': await renderBookmarks(); break;
+    case 'history': await renderHistory(); break;
+    case 'search': renderSearchView(); break;
+    case 'import': await renderImport(); break;
+    case 'auth': await renderAuth(); break;
+    case 'dashboard': await renderDashboard(); break;
+  }
+}
+
+async function renderBookmarks() {
+  try {
+    allBookmarks = await invoke('get_bookmarks', { browserFilter });
+    const el = document.getElementById('content');
+
+    if (allBookmarks.length === 0) {
+      el.innerHTML = '<div class="empty"><p>No bookmarks yet.</p><button class="toolbar-btn" onclick="showView(\'import\')">Import from browsers</button></div>';
+      return;
+    }
+
+    el.innerHTML = `
+      ${filterPills()}
+      <table class="data-table">
+        <thead><tr><th></th><th>Title</th><th>URL</th><th>Folder</th><th></th></tr></thead>
+        <tbody>${allBookmarks.slice(0, 500).map(b => `
+          <tr>
+            <td class="tag">[${b.source_browser?.[0] || '?'}]</td>
+            <td class="title-cell" title="${esc(b.title)}">${esc(b.title)}</td>
+            <td class="url" title="${esc(b.url)}">${esc(shortUrl(b.url))}</td>
+            <td class="folder">${esc(b.folder_path?.join(' / ') || '')}</td>
+            <td class="actions"><button class="open-btn" onclick="openUrl('${esc(b.url)}')">Open</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <div style="padding:.75rem;font-size:.78rem;color:var(--text-m)">Showing ${Math.min(500, allBookmarks.length)} of ${allBookmarks.length}</div>
+    `;
+  } catch (e) { showError(e); }
+}
+
+async function renderHistory() {
+  try {
+    allHistory = await invoke('get_history', { limit: 500, browserFilter });
+    const el = document.getElementById('content');
+
+    if (allHistory.length === 0) {
+      el.innerHTML = '<div class="empty"><p>No history yet.</p><button class="toolbar-btn" onclick="showView(\'import\')">Import from browsers</button></div>';
+      return;
+    }
+
+    el.innerHTML = `
+      ${filterPills()}
+      <table class="data-table">
+        <thead><tr><th></th><th>Title</th><th>URL</th><th style="text-align:right">Visits</th><th>Last visited</th><th></th></tr></thead>
+        <tbody>${allHistory.map(h => `
+          <tr>
+            <td class="tag">[${h.source_browser?.[0] || '?'}]</td>
+            <td class="title-cell" title="${esc(h.title)}">${esc(h.title || '(untitled)')}</td>
+            <td class="url" title="${esc(h.url)}">${esc(shortUrl(h.url))}</td>
+            <td class="visits">${h.visit_count}x</td>
+            <td class="time">${timeAgo(h.last_visited)}</td>
+            <td class="actions"><button class="open-btn" onclick="openUrl('${esc(h.url)}')">Open</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    `;
+  } catch (e) { showError(e); }
+}
+
+function renderSearchView() {
+  const el = document.getElementById('content');
+  el.innerHTML = '<div class="empty"><p>Type in the search bar above and press Enter.</p></div>';
+  document.getElementById('search-input').focus();
+}
+
+async function renderImport() {
+  try {
+    const browsers = await invoke('detect_browsers');
+    const el = document.getElementById('content');
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+        <h2 style="font-size:1.1rem;">Browser Import</h2>
+        <button class="toolbar-btn" onclick="importAll()">Import All</button>
+      </div>
+      <div class="browser-list">
+        ${browsers.map(b => `
+          <div class="browser-card">
+            <div class="name">${b.name}</div>
+            <div class="status ${b.has_data ? 'active' : 'inactive'}">
+              ${b.has_data ? 'Data available' : b.is_installed ? 'Installed (no data)' : 'Not found'}
+              ${b.has_bookmarks ? ' &middot; bookmarks' : ''}${b.has_history ? ' &middot; history' : ''}${b.has_logins ? ' &middot; logins' : ''}
+            </div>
+            <button class="import-btn" ${b.has_data ? '' : 'disabled'} onclick="importOne('${b.name}', this)">
+              ${b.has_data ? 'Import' : 'N/A'}
+            </button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (e) { showError(e); }
+}
+
+async function renderAuth() {
+  try {
+    const entries = await invoke('get_auth_entries');
+    const el = document.getElementById('content');
+
+    if (entries.length === 0) {
+      el.innerHTML = '<div class="empty"><p>No auth entries found.</p></div>';
+      return;
+    }
+
+    el.innerHTML = `
+      <table class="data-table">
+        <thead><tr><th>Domain</th><th>Username</th><th>Browser</th></tr></thead>
+        <tbody>${entries.map(e => `
+          <tr>
+            <td class="auth-domain">${esc(e.domain)}</td>
+            <td>${esc(e.username || '(none)')}</td>
+            <td class="tag">${esc(e.browser)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <div style="padding:.75rem;font-size:.78rem;color:var(--text-m)">${entries.length} saved logins (passwords are never stored)</div>
+    `;
+  } catch (e) { showError(e); }
+}
+
+async function renderDashboard() {
+  try {
+    const [stats, syncLog, browsers] = await Promise.all([
+      invoke('get_stats'),
+      invoke('get_sync_log'),
+      invoke('detect_browsers'),
+    ]);
+
+    const activeBrowsers = browsers.filter(b => b.has_data).length;
+    const el = document.getElementById('content');
+
+    el.innerHTML = `
+      <div class="dashboard">
+        <div class="card"><div class="label">Bookmarks</div><div class="value">${stats.bookmark_count.toLocaleString()}</div></div>
+        <div class="card"><div class="label">History</div><div class="value">${stats.history_count.toLocaleString()}</div></div>
+        <div class="card"><div class="label">Active browsers</div><div class="value">${activeBrowsers}</div><div class="sub">${browsers.filter(b=>b.has_data).map(b=>b.name).join(', ')}</div></div>
+        <div class="card"><div class="label">Syncs</div><div class="value">${syncLog.length}</div></div>
+      </div>
+      <h3 style="font-size:.95rem;margin-bottom:.75rem;">Recent syncs</h3>
+      ${syncLog.length ? `<table class="sync-table">
+        ${syncLog.map(s => `<tr><td style="width:100px;font-weight:500">${s.browser}</td><td>${s.sync_type}</td><td style="text-align:right">${s.items.toLocaleString()} items</td><td style="color:var(--text-m)">${timeAgo(s.time)}</td></tr>`).join('')}
+      </table>` : '<div class="empty">No syncs yet. Import data to get started.</div>'}
+    `;
+  } catch (e) { showError(e); }
+}
+
+// --- Actions ---
+
+async function handleSearch(e) {
+  if (e.key !== 'Enter') return;
+  const q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+
+  currentView = 'search';
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector('.nav-item[onclick*="search"]')?.classList?.add('active');
+
+  const el = document.getElementById('content');
+  el.innerHTML = '<div class="loading">Searching...</div>';
+
+  try {
+    const results = await invoke('search_all', { query: q });
+    const total = results.bookmarks.length + results.history.length;
+
+    el.innerHTML = `
+      <div style="font-size:.85rem;color:var(--text-m);margin-bottom:1rem;">${total} results for "${esc(q)}"</div>
+      ${results.bookmarks.length ? `
+        <h3 style="font-size:.9rem;margin-bottom:.5rem;">Bookmarks (${results.bookmarks.length})</h3>
+        <table class="data-table" style="margin-bottom:1.5rem;">
+          <tbody>${results.bookmarks.slice(0,50).map(b => `
+            <tr>
+              <td class="tag">[${b.source_browser?.[0] || '?'}]</td>
+              <td class="title-cell">${esc(b.title)}</td>
+              <td class="url">${esc(shortUrl(b.url))}</td>
+              <td class="actions"><button class="open-btn" onclick="openUrl('${esc(b.url)}')">Open</button></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>` : ''}
+      ${results.history.length ? `
+        <h3 style="font-size:.9rem;margin-bottom:.5rem;">History (${results.history.length})</h3>
+        <table class="data-table">
+          <tbody>${results.history.slice(0,50).map(h => `
+            <tr>
+              <td class="tag">[${h.source_browser?.[0] || '?'}]</td>
+              <td class="title-cell">${esc(h.title || '(untitled)')}</td>
+              <td class="url">${esc(shortUrl(h.url))}</td>
+              <td class="visits">${h.visit_count}x</td>
+              <td class="actions"><button class="open-btn" onclick="openUrl('${esc(h.url)}')">Open</button></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>` : ''}
+      ${total === 0 ? '<div class="empty">No results found.</div>' : ''}
+    `;
+  } catch (e) { showError(e); }
+}
+
+async function importOne(browserName, btn) {
+  btn.textContent = '...';
+  btn.disabled = true;
+  try {
+    const r = await invoke('import_browser', { browserName });
+    toast(`Imported ${r.bookmarks} bookmarks + ${r.history} history from ${r.browser}`);
+    btn.textContent = 'Done';
+    updateStats();
+  } catch (e) {
+    toast('Error: ' + e, true);
+    btn.textContent = 'Retry';
+    btn.disabled = false;
+  }
+}
+
+async function importAll() {
+  try {
+    const results = await invoke('import_all');
+    const total = results.reduce((s, r) => s + r.bookmarks + r.history, 0);
+    toast(`Imported ${total} items from ${results.length} browser(s)`);
+    updateStats();
+    await renderImport();
+  } catch (e) { toast('Error: ' + e, true); }
+}
+
+async function openUrl(url) {
+  try { await invoke('open_url', { url }); }
+  catch (e) { toast('Error: ' + e, true); }
+}
+
+function exportDialog() {
+  const path = prompt('Export path:', '~/Desktop/bookmarks.html');
+  if (!path) return;
+  const fmt = path.endsWith('.json') ? 'json' : path.endsWith('.csv') ? 'csv' : 'html';
+  invoke('export_bookmarks', { format: fmt, path, browserFilter: null })
+    .then(msg => toast(msg))
+    .catch(e => toast('Error: ' + e, true));
+}
+
+function setFilter(browser) {
+  browserFilter = browserFilter === browser ? null : browser;
+  if (currentView === 'bookmarks') renderBookmarks();
+  else if (currentView === 'history') renderHistory();
+}
+
+// --- Helpers ---
+
+function filterPills() {
+  const browsers = ['Chrome', 'Firefox', 'Safari', 'Edge', 'Brave', 'Arc'];
+  return `<div class="filters">
+    <button class="filter-pill ${!browserFilter ? 'active' : ''}" onclick="setFilter(null)">All</button>
+    ${browsers.map(b => `<button class="filter-pill ${browserFilter === b.toLowerCase() ? 'active' : ''}" onclick="setFilter('${b.toLowerCase()}')">${b}</button>`).join('')}
+  </div>`;
+}
+
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function shortUrl(url) {
+  return (url || '').replace(/^https?:\/\//, '').replace(/\/$/, '').substring(0, 60);
+}
+
+function timeAgo(dt) {
+  if (!dt) return '';
+  const d = new Date(dt);
+  const diff = Date.now() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return days + 'd ago';
+  const months = Math.floor(days / 30);
+  if (months < 12) return months + 'mo ago';
+  return Math.floor(months / 12) + 'y ago';
+}
+
+function toast(msg, isError) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.borderColor = isError ? 'var(--red)' : 'var(--green)';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function showError(e) {
+  document.getElementById('content').innerHTML = `<div class="empty" style="color:var(--red)">Error: ${esc(e)}</div>`;
+}
+
+async function updateStats() {
+  try {
+    const s = await invoke('get_stats');
+    document.getElementById('sidebar-stats').innerHTML =
+      `${s.bookmark_count.toLocaleString()} bookmarks<br>${s.history_count.toLocaleString()} history`;
+  } catch { }
+}
+
+// --- Init ---
+window.addEventListener('DOMContentLoaded', async () => {
+  await updateStats();
+  await showView('bookmarks');
+});
+</script>
+</body>
+</html>
