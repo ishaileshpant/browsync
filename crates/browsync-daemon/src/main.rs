@@ -1,3 +1,4 @@
+#[cfg(unix)]
 mod ipc;
 mod scheduler;
 mod watcher;
@@ -9,7 +10,6 @@ use browsync_core::db::Database;
 use browsync_core::detect;
 use browsync_core::parsers;
 
-use ipc::{IpcMessage, IpcServer};
 use scheduler::SyncScheduler;
 use watcher::{BrowserWatcher, ChangeType};
 
@@ -42,8 +42,11 @@ fn start_daemon() -> Result<()> {
 
     // Initialize components
     let file_watcher = BrowserWatcher::new(&browsers)?;
-    let ipc_server = IpcServer::bind()?;
     let mut scheduler = SyncScheduler::new(5, 30); // 5s debounce, 30min periodic
+
+    // IPC server (Unix only)
+    #[cfg(unix)]
+    let ipc_server = ipc::IpcServer::bind()?;
 
     // Write PID file
     let pid_path = browsync_core::db::Database::data_dir()?.join("daemon.pid");
@@ -52,8 +55,10 @@ fn start_daemon() -> Result<()> {
     eprintln!("Daemon ready (PID {})", std::process::id());
 
     loop {
-        // Check for IPC messages
+        // Check for IPC messages (Unix only)
+        #[cfg(unix)]
         if let Some((msg, stream)) = ipc_server.try_recv() {
+            use ipc::{IpcMessage, IpcServer};
             match msg {
                 IpcMessage::Status => {
                     let response = IpcMessage::StatusResponse {
@@ -159,8 +164,10 @@ fn do_sync(
     Ok(())
 }
 
+#[cfg(unix)]
 fn stop_daemon() -> Result<()> {
-    match ipc::IpcClient::send(&IpcMessage::Stop) {
+    use ipc::{IpcClient, IpcMessage};
+    match IpcClient::send(&IpcMessage::Stop) {
         Ok(IpcMessage::Ack { message }) => {
             println!("Daemon: {message}");
         }
@@ -181,8 +188,25 @@ fn stop_daemon() -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(unix))]
+fn stop_daemon() -> Result<()> {
+    let pid_path = Database::data_dir()?.join("daemon.pid");
+    if let Ok(pid) = std::fs::read_to_string(&pid_path) {
+        let _ = std::process::Command::new("taskkill")
+            .args(["/PID", pid.trim(), "/F"])
+            .status();
+        let _ = std::fs::remove_file(&pid_path);
+        println!("Stopped daemon process");
+    } else {
+        println!("Daemon: not running");
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
 fn daemon_status() -> Result<()> {
-    match ipc::IpcClient::send(&IpcMessage::Status) {
+    use ipc::{IpcClient, IpcMessage};
+    match IpcClient::send(&IpcMessage::Status) {
         Ok(IpcMessage::StatusResponse {
             running,
             watching,
@@ -200,6 +224,17 @@ fn daemon_status() -> Result<()> {
         Err(_) => {
             println!("Daemon: not running");
         }
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn daemon_status() -> Result<()> {
+    let pid_path = Database::data_dir()?.join("daemon.pid");
+    if pid_path.exists() {
+        println!("Daemon: running (PID file exists)");
+    } else {
+        println!("Daemon: not running");
     }
     Ok(())
 }

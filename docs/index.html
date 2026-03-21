@@ -3,258 +3,142 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>browsync &mdash; Cross-Browser Consolidation</title>
-<meta name="description" content="Move seamlessly between Chrome, Firefox, Safari, Edge, Brave, and Arc. Unified CLI + TUI for bookmarks, history, and auth.">
-<meta property="og:title" content="browsync — Cross-Browser Consolidation">
-<meta property="og:description" content="One tool to sync bookmarks, history, and sessions across all browsers. CLI + TUI + daemon + extension.">
-<meta property="og:type" content="website">
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>browsync &mdash; Cross-Browser Data Consolidation</title>
+<meta name="description" content="Unified CLI toolchain for syncing bookmarks, history, and sessions across Chrome, Firefox, Safari, Edge, Brave, and Arc.">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0A0A0C;
-    --bg-card: #111115;
-    --bg-elevated: #18181E;
-    --text: #E8E6E3;
-    --text-muted: #8A8692;
-    --accent: #00D4FF;
-    --accent-dim: rgba(0,212,255,0.12);
-    --accent-glow: rgba(0,212,255,0.25);
-    --border: rgba(255,255,255,0.06);
-    --border-hover: rgba(0,212,255,0.3);
-    --success: #4ADE80;
-    --warn: #FBBF24;
-    --serif: 'DM Serif Display', Georgia, serif;
-    --sans: 'DM Sans', -apple-system, sans-serif;
-    --mono: 'JetBrains Mono', monospace;
+    --bg: #fafafa;
+    --bg-code: #f4f4f5;
+    --bg-card: #ffffff;
+    --text: #18181b;
+    --text-secondary: #52525b;
+    --text-muted: #71717a;
+    --accent: #2563eb;
+    --accent-light: #dbeafe;
+    --border: #e4e4e7;
+    --border-strong: #d4d4d8;
+    --success: #16a34a;
+    --warn: #ca8a04;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Inter', -apple-system, system-ui, sans-serif;
+    --radius: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-lg: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #09090b;
+      --bg-code: #18181b;
+      --bg-card: #111113;
+      --text: #f4f4f5;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
+      --accent: #60a5fa;
+      --accent-light: #1e3a5f;
+      --border: #27272a;
+      --border-strong: #3f3f46;
+      --shadow: 0 1px 3px rgba(0,0,0,0.3);
+      --shadow-lg: 0 4px 12px rgba(0,0,0,0.4);
+    }
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { scroll-behavior: smooth; }
-  body {
-    font-family: var(--sans);
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.65;
-    -webkit-font-smoothing: antialiased;
-  }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.7; -webkit-font-smoothing: antialiased; }
+
+  /* Layout */
+  .container { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
 
   /* Nav */
-  nav {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-    backdrop-filter: blur(24px);
-    background: rgba(10,10,12,0.85);
-    border-bottom: 1px solid var(--border);
-  }
-  .nav-inner {
-    max-width: 1100px; margin: 0 auto;
-    padding: 0 2rem; height: 64px;
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .nav-logo { font-family: var(--serif); font-size: 1.3rem; color: var(--accent); text-decoration: none; }
-  .nav-links { display: flex; gap: 2rem; }
-  .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 0.85rem; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; transition: color 0.2s; }
-  .nav-links a:hover { color: var(--accent); }
+  nav { position: sticky; top: 0; z-index: 100; background: var(--bg); border-bottom: 1px solid var(--border); }
+  .nav-inner { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+  .nav-logo { font-family: var(--mono); font-weight: 600; font-size: 1.1rem; color: var(--text); text-decoration: none; }
+  .nav-logo span { color: var(--accent); }
+  .nav-links { display: flex; gap: 1.75rem; }
+  .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 0.875rem; font-weight: 500; transition: color 0.15s; }
+  .nav-links a:hover { color: var(--text); }
 
   /* Hero */
-  .hero {
-    min-height: 100vh;
-    display: flex; align-items: center; justify-content: center;
-    padding: 6rem 2rem 4rem;
-    text-align: center;
-  }
-  .hero h1 { font-family: var(--serif); font-size: clamp(2.5rem, 5vw, 4rem); margin-bottom: 1rem; }
-  .hero h1 span { color: var(--accent); }
-  .hero p { font-size: 1.15rem; color: var(--text-muted); max-width: 600px; margin: 0 auto 2.5rem; }
-  .hero-badges { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; margin-bottom: 2rem; }
-  .badge {
-    display: inline-flex; align-items: center; gap: 0.4rem;
-    padding: 0.35rem 0.85rem; border-radius: 999px;
-    background: var(--accent-dim); color: var(--accent);
-    font-size: 0.8rem; font-weight: 600; letter-spacing: 0.03em;
-  }
+  .hero { padding: 5rem 0 4rem; border-bottom: 1px solid var(--border); }
+  .hero h1 { font-size: 2.25rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 1rem; }
+  .hero .lead { font-size: 1.1rem; color: var(--text-secondary); max-width: 600px; margin-bottom: 2rem; }
+  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 2rem; }
+  .hero-meta span { display: flex; align-items: center; gap: 0.35rem; }
+  .hero-meta .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+  .dot-green { background: var(--success); }
+  .dot-blue { background: var(--accent); }
 
-  /* Install box */
-  .install-box {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    max-width: 600px;
-    margin: 0 auto;
-    overflow: hidden;
-  }
-  .install-tabs {
-    display: flex;
-    border-bottom: 1px solid var(--border);
-  }
-  .install-tab {
-    flex: 1; padding: 0.75rem;
-    text-align: center; cursor: pointer;
-    font-size: 0.85rem; font-weight: 600;
-    color: var(--text-muted);
-    border: none; background: none;
-    transition: all 0.2s;
-  }
-  .install-tab.active {
-    color: var(--accent);
-    background: var(--accent-dim);
-  }
-  .install-content {
-    padding: 1.5rem;
-    display: none;
-  }
-  .install-content.active { display: block; }
-  .install-cmd {
-    font-family: var(--mono);
-    font-size: 0.9rem;
-    background: var(--bg);
-    padding: 1rem 1.25rem;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    color: var(--success);
-    word-break: break-all;
-    position: relative;
-  }
-  .install-cmd .prompt { color: var(--text-muted); }
-  .copy-btn {
-    position: absolute; top: 0.5rem; right: 0.5rem;
-    background: var(--bg-elevated); border: 1px solid var(--border);
-    color: var(--text-muted); padding: 0.3rem 0.6rem;
-    border-radius: 6px; cursor: pointer; font-size: 0.75rem;
-    font-family: var(--sans);
-  }
-  .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+  /* Install */
+  .install-section { margin-top: 2rem; }
+  .install-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 0; }
+  .install-tab { padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 500; color: var(--text-muted); border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; font-family: var(--sans); }
+  .install-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .install-panel { display: none; padding: 1rem 0; }
+  .install-panel.active { display: block; }
+  .install-cmd { font-family: var(--mono); font-size: 0.9rem; background: var(--bg-code); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.875rem 1rem; position: relative; overflow-x: auto; }
+  .install-cmd .prompt { color: var(--text-muted); user-select: none; }
+  .install-cmd code { color: var(--text); }
+  .copy-btn { position: absolute; top: 0.5rem; right: 0.5rem; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-family: var(--sans); }
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-  /* Sections */
-  section { padding: 5rem 2rem; max-width: 1100px; margin: 0 auto; }
-  section h2 {
-    font-family: var(--serif); font-size: 2rem;
-    margin-bottom: 0.5rem;
-  }
-  section h2 span { color: var(--accent); }
-  section .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 2.5rem; }
+  /* Section */
+  section { padding: 4rem 0; border-bottom: 1px solid var(--border); }
+  section:last-of-type { border-bottom: none; }
+  section h2 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+  section .section-lead { color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.95rem; }
 
-  /* Feature grid */
-  .features {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1.5rem;
-  }
-  .feature-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 1.75rem;
-    transition: border-color 0.3s, transform 0.2s;
-  }
-  .feature-card:hover {
-    border-color: var(--border-hover);
-    transform: translateY(-2px);
-  }
-  .feature-icon { font-size: 1.5rem; margin-bottom: 0.75rem; }
-  .feature-card h3 { font-size: 1.1rem; margin-bottom: 0.5rem; }
-  .feature-card p { color: var(--text-muted); font-size: 0.9rem; }
+  /* Command ref table */
+  .ref-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  .ref-table th { text-align: left; padding: 0.625rem 0; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid var(--border-strong); }
+  .ref-table td { padding: 0.625rem 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .ref-table td:first-child { font-family: var(--mono); font-size: 0.85rem; color: var(--accent); padding-right: 1.5rem; white-space: nowrap; }
 
-  /* Code blocks */
-  .code-block {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin: 1.5rem 0;
-    overflow-x: auto;
-  }
-  .code-block pre {
-    font-family: var(--mono);
-    font-size: 0.85rem;
-    line-height: 1.7;
-    color: var(--text);
-  }
-  .code-block .comment { color: var(--text-muted); }
-  .code-block .cmd { color: var(--success); }
-  .code-block .output { color: var(--text-muted); }
-  .code-block .highlight { color: var(--accent); }
+  /* Code block */
+  pre.terminal { font-family: var(--mono); font-size: 0.82rem; line-height: 1.8; background: var(--bg-code); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; overflow-x: auto; margin: 1.5rem 0; }
+  pre.terminal .ps { color: var(--text-muted); user-select: none; }
+  pre.terminal .out { color: var(--text-secondary); }
+  pre.terminal .hl { color: var(--accent); }
 
-  /* Commands table */
-  .cmd-table { width: 100%; border-collapse: collapse; }
-  .cmd-table th {
-    text-align: left; padding: 0.75rem 1rem;
-    font-size: 0.8rem; text-transform: uppercase;
-    letter-spacing: 0.06em; color: var(--text-muted);
-    border-bottom: 1px solid var(--border);
-  }
-  .cmd-table td {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--border);
-    font-size: 0.9rem;
-  }
-  .cmd-table td:first-child {
-    font-family: var(--mono);
-    color: var(--accent);
-    white-space: nowrap;
-  }
+  /* UML-style diagrams */
+  .diagram { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin: 2rem 0; box-shadow: var(--shadow); overflow-x: auto; }
+  .diagram-title { font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 1rem; }
+  .diagram pre { font-family: var(--mono); font-size: 0.78rem; line-height: 1.6; color: var(--text-secondary); margin: 0; }
+  .diagram .class { color: var(--accent); font-weight: 600; }
+  .diagram .iface { color: var(--success); }
+  .diagram .rel { color: var(--text-muted); }
+  .diagram .note { color: var(--warn); }
 
-  /* TUI preview */
-  .tui-preview {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 1.5rem;
-    font-family: var(--mono);
-    font-size: 0.8rem;
-    line-height: 1.5;
-    overflow-x: auto;
-    max-width: 700px;
-    margin: 2rem auto;
-  }
-  .tui-preview .tab-active { color: var(--accent); font-weight: bold; }
-  .tui-preview .browser-tag { color: var(--warn); }
-  .tui-preview .url { color: var(--text-muted); }
-  .tui-preview .border-char { color: #333; }
+  /* Feature list */
+  .feature-list { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
+  .feature-list li { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; box-shadow: var(--shadow); }
+  .feature-list li strong { display: block; margin-bottom: 0.35rem; font-size: 0.95rem; }
+  .feature-list li p { color: var(--text-secondary); font-size: 0.875rem; margin: 0; }
 
-  /* Architecture */
-  .arch-diagram {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 2rem;
-    font-family: var(--mono);
-    font-size: 0.82rem;
-    line-height: 1.6;
-    text-align: center;
-    overflow-x: auto;
-  }
-  .arch-diagram .crate { color: var(--accent); }
-  .arch-diagram .tech { color: var(--success); }
+  /* Stack grid */
+  .stack-table { width: 100%; border-collapse: collapse; }
+  .stack-table td { padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  .stack-table td:first-child { font-weight: 600; width: 140px; color: var(--text-secondary); }
+  .stack-table td:last-child { font-family: var(--mono); font-size: 0.85rem; }
 
-  /* Stack table */
-  .stack-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1rem;
-  }
-  .stack-item {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 1rem 1.25rem;
-    display: flex; align-items: center; gap: 1rem;
-  }
-  .stack-item .label { font-weight: 600; min-width: 80px; }
-  .stack-item .value { color: var(--accent); font-family: var(--mono); font-size: 0.85rem; }
+  /* TUI mockup */
+  .tui-mock { font-family: var(--mono); font-size: 0.78rem; line-height: 1.5; background: #1a1a2e; color: #d4d4d8; border-radius: var(--radius); padding: 1.25rem; overflow-x: auto; box-shadow: var(--shadow-lg); margin: 2rem 0; }
+  .tui-mock .chrome { color: var(--accent); }
+  .tui-mock .tab-active { color: #22d3ee; font-weight: bold; }
+  .tui-mock .tag { color: #facc15; }
+  .tui-mock .url { color: #71717a; }
+  .tui-mock .dim { color: #3f3f46; }
+  .tui-mock .key { color: #22d3ee; }
 
   /* Footer */
-  footer {
-    text-align: center;
-    padding: 3rem 2rem;
-    border-top: 1px solid var(--border);
-    color: var(--text-muted);
-    font-size: 0.85rem;
-  }
+  footer { padding: 2.5rem 0; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
   footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
 
-  @media (max-width: 768px) {
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 1.75rem; }
     .nav-links { gap: 1rem; }
-    .features { grid-template-columns: 1fr; }
-    .tui-preview { font-size: 0.65rem; }
+    .feature-list { grid-template-columns: 1fr; }
+    .tui-mock { font-size: 0.65rem; }
   }
 </style>
 </head>
@@ -262,222 +146,254 @@
 
 <nav>
   <div class="nav-inner">
-    <a href="#" class="nav-logo">browsync</a>
+    <a href="#" class="nav-logo">browsync<span>.</span></a>
     <div class="nav-links">
       <a href="#install">Install</a>
-      <a href="#features">Features</a>
-      <a href="#usage">Usage</a>
+      <a href="#reference">Reference</a>
       <a href="#architecture">Architecture</a>
-      <a href="https://github.com/ishaileshpant/browsync">GitHub</a>
+      <a href="https://github.com/ishaileshpant/browsync">Source</a>
     </div>
   </div>
 </nav>
 
-<!-- Hero -->
+<div class="container">
+
 <section class="hero">
-  <div>
-    <h1>One CLI to <span>sync them all</span></h1>
-    <p>Consolidate bookmarks, history, and sessions across Chrome, Firefox, Safari, Edge, Brave, and Arc. CLI-first with a full terminal UI.</p>
+  <h1>Cross-browser data consolidation</h1>
+  <p class="lead">A Rust CLI toolchain that unifies bookmarks, browsing history, and login metadata across Chrome, Firefox, Safari, Edge, Brave, and Arc into a single searchable database.</p>
+  <div class="hero-meta">
+    <span><span class="dot dot-green"></span> v0.1.0</span>
+    <span>Rust &middot; Edition 2024</span>
+    <span>46 tests passing</span>
+    <span>macOS / Windows / Linux</span>
+  </div>
 
-    <div class="hero-badges">
-      <span class="badge">Rust</span>
-      <span class="badge">46 tests</span>
-      <span class="badge">6 browsers</span>
-      <span class="badge">FTS5 search</span>
-      <span class="badge">TUI</span>
-      <span class="badge">macOS + Windows</span>
+  <div class="install-section" id="install">
+    <div class="install-tabs">
+      <button class="install-tab active" onclick="showTab('mac')">macOS / Linux</button>
+      <button class="install-tab" onclick="showTab('win')">Windows</button>
+      <button class="install-tab" onclick="showTab('cargo')">cargo install</button>
     </div>
-
-    <div class="install-box" id="install">
-      <div class="install-tabs">
-        <button class="install-tab active" onclick="showTab('mac')">macOS</button>
-        <button class="install-tab" onclick="showTab('win')">Windows</button>
-        <button class="install-tab" onclick="showTab('source')">From Source</button>
+    <div class="install-panel active" id="tab-mac">
+      <div class="install-cmd">
+        <span class="prompt">$ </span><code>curl -fsSL https://ishaileshpant.github.io/browsync/install.sh | bash</code>
+        <button class="copy-btn" onclick="copyCmd(this)">Copy</button>
       </div>
-      <div class="install-content active" id="tab-mac">
-        <div class="install-cmd">
-          <span class="prompt">$</span> curl -fsSL https://ishaileshpant.github.io/browsync/install.sh | bash
-          <button class="copy-btn" onclick="copyCmd(this)">Copy</button>
-        </div>
+    </div>
+    <div class="install-panel" id="tab-win">
+      <div class="install-cmd">
+        <span class="prompt">PS&gt; </span><code>irm https://ishaileshpant.github.io/browsync/install.ps1 | iex</code>
+        <button class="copy-btn" onclick="copyCmd(this)">Copy</button>
       </div>
-      <div class="install-content" id="tab-win">
-        <div class="install-cmd">
-          <span class="prompt">PS&gt;</span> irm https://ishaileshpant.github.io/browsync/install.ps1 | iex
-          <button class="copy-btn" onclick="copyCmd(this)">Copy</button>
-        </div>
-      </div>
-      <div class="install-content" id="tab-source">
-        <div class="install-cmd">
-          <span class="prompt">$</span> cargo install --git https://github.com/ishaileshpant/browsync browsync-cli
-          <button class="copy-btn" onclick="copyCmd(this)">Copy</button>
-        </div>
+    </div>
+    <div class="install-panel" id="tab-cargo">
+      <div class="install-cmd">
+        <span class="prompt">$ </span><code>cargo install --git https://github.com/ishaileshpant/browsync browsync-cli</code>
+        <button class="copy-btn" onclick="copyCmd(this)">Copy</button>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Features -->
-<section id="features">
-  <h2>What <span>browsync</span> does</h2>
-  <p class="subtitle">Everything you need to move between browsers without losing anything.</p>
-
-  <div class="features">
-    <div class="feature-card">
-      <div class="feature-icon">&#x1F50D;</div>
-      <h3>Universal Search</h3>
-      <p>FTS5 full-text search across all bookmarks and history from every browser. Prefix matching, multi-word queries.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">&#x1F4E5;</div>
-      <h3>Multi-Browser Import</h3>
-      <p>Chrome, Firefox, Safari, Edge, Brave, Arc. Reads native formats directly &mdash; JSON, SQLite, plist. No export step needed.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">&#x1F4E4;</div>
-      <h3>Export Anywhere</h3>
-      <p>Netscape HTML (importable by all browsers), JSON, CSV. Chrome-compatible JSON format for direct import.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">&#x1F5A5;</div>
-      <h3>Terminal UI</h3>
-      <p>Full ratatui TUI with bookmark tree, history list, fuzzy search, and quick-open to any browser. Vim keybindings.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">&#x1F504;</div>
-      <h3>Background Sync</h3>
-      <p>Daemon watches browser profile directories for changes. Auto-imports on bookmark or history modification.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">&#x1F512;</div>
-      <h3>Auth Migration</h3>
-      <p>Track saved logins across browsers. Generate migration reports showing which sites need re-login when switching.</p>
-    </div>
-  </div>
-</section>
-
-<!-- Usage -->
-<section id="usage">
-  <h2>How to <span>use it</span></h2>
-  <p class="subtitle">Every command you need, from first import to daily workflow.</p>
-
-  <table class="cmd-table">
-    <thead>
-      <tr><th>Command</th><th>Description</th></tr>
-    </thead>
-    <tbody>
-      <tr><td>browsync detect</td><td>Auto-detect installed browsers and available data</td></tr>
-      <tr><td>browsync import</td><td>Import bookmarks + history from all browsers</td></tr>
-      <tr><td>browsync import --browser chrome</td><td>Import from a specific browser</td></tr>
-      <tr><td>browsync search "query"</td><td>Full-text search across all data</td></tr>
-      <tr><td>browsync export --format html</td><td>Export to Netscape HTML / JSON / CSV</td></tr>
-      <tr><td>browsync open &lt;url&gt; --browser arc</td><td>Open a URL in any installed browser</td></tr>
-      <tr><td>browsync tui</td><td>Launch interactive terminal UI</td></tr>
-      <tr><td>browsync status</td><td>Show database stats and sync history</td></tr>
-      <tr><td>browsync auth list</td><td>List all saved login domains</td></tr>
-      <tr><td>browsync auth migrate --from chrome --to arc</td><td>Auth migration report between browsers</td></tr>
-      <tr><td>browsyncd start</td><td>Start background sync daemon</td></tr>
-    </tbody>
-  </table>
-
-  <div class="code-block">
-    <pre><span class="comment"># First run: detect and import</span>
-<span class="cmd">$ browsync detect</span>
-<span class="output">  [+] Chrome   active (bookmarks, history, logins)
-  [+] Safari   active (bookmarks, history)
-
-  2 browser(s) with importable data</span>
-
-<span class="cmd">$ browsync import</span>
-<span class="output">  Importing from Chrome...
-    Bookmarks: 3061 imported
-    History:   5614 imported
-
-  Database totals: 3061 bookmarks, 5614 history entries</span>
-
-<span class="comment"># Search across everything</span>
-<span class="cmd">$ browsync search "rust async"</span>
-<span class="output">  Bookmarks (2 results):
-    1. The Rust Programming Language <span class="highlight">[C]</span>
-       https://www.rust-lang.org/</span>
-
-<span class="comment"># Export for another browser</span>
-<span class="cmd">$ browsync export --format html -o bookmarks.html</span>
-<span class="output">  Exported 3061 bookmarks to bookmarks.html</span></pre>
-  </div>
-
-  <h3 style="margin-top: 3rem; margin-bottom: 1rem;">Terminal UI Preview</h3>
-  <div class="tui-preview">
-<span class="border-char">+-- browsync -----------------------------------------------+</span>
-| <span class="tab-active">[Bookmarks]</span> [History] [Search] [Status]                  |
-<span class="border-char">+-----------------------------------------------------------+</span>
-| <span class="browser-tag">[C]</span> GitHub                          <span class="url">github.com</span>          |
-| <span class="browser-tag">[C]</span> Docs.rs                         <span class="url">docs.rs</span>             |
-| <span class="browser-tag">[C]</span> Kubernetes Docs                 <span class="url">kubernetes.io</span>       |
-| <span class="browser-tag">[F]</span> MDN Web Docs                    <span class="url">developer.mozilla.org</span>|
-| <span class="browser-tag">[S]</span> Apple Developer                 <span class="url">developer.apple.com</span> |
-<span class="border-char">+-----------------------------------------------------------+</span>
-| <span class="highlight">[/]</span>search <span class="highlight">[1-4]</span>tabs <span class="highlight">[j/k]</span>nav <span class="highlight">[o]</span>pen <span class="highlight">[q]</span>uit              |
-<span class="border-char">+-----------------------------------------------------------+</span>
-  </div>
+<!-- Capabilities -->
+<section>
+  <h2>Capabilities</h2>
+  <ul class="feature-list">
+    <li><strong>Multi-browser import</strong><p>Reads native data directly from Chrome (JSON), Firefox (SQLite), Safari (plist), and all Chromium derivatives. No manual export step.</p></li>
+    <li><strong>Full-text search</strong><p>FTS5-indexed SQLite database. Prefix matching, multi-word queries across URLs, titles, folder paths, and tags.</p></li>
+    <li><strong>Format-agnostic export</strong><p>Netscape HTML (universally importable), Chrome-compatible JSON, and CSV. Filter by source browser.</p></li>
+    <li><strong>Terminal UI</strong><p>Ratatui-based interface with bookmark tree, history timeline, live search, and direct URL opening. Vim-style navigation.</p></li>
+    <li><strong>Background daemon</strong><p>File-system watcher on browser profile directories. Debounced incremental sync with periodic full sweeps. Unix socket IPC.</p></li>
+    <li><strong>Auth migration</strong><p>Extracts login metadata (domain + username, never passwords) from browser credential stores. Generates migration reports between browsers.</p></li>
+  </ul>
 </section>
 
 <!-- Architecture -->
 <section id="architecture">
-  <h2>Under the <span>hood</span></h2>
-  <p class="subtitle">Rust workspace with 3 crates + TypeScript browser extension.</p>
+  <h2>Architecture</h2>
+  <p class="section-lead">Three Rust crates plus a Manifest V3 browser extension.</p>
 
-  <div class="arch-diagram">
+  <div class="diagram">
+    <div class="diagram-title">Component Diagram</div>
 <pre>
-  Chrome  Firefox  Safari  Edge  Brave  Arc
-    |        |       |      |      |      |
-    +--------+-------+------+------+------+
-                     |
-          +----------v----------+
-          |   <span class="crate">browsync-core</span>     |  <span class="tech">rusqlite + FTS5</span>
-          |   parsers / sync    |  <span class="tech">serde + plist</span>
-          +----------+----------+
-                     |
-       +-------------+-------------+
-       |             |             |
-  +----v----+  +-----v-----+  +---v---+
-  | <span class="crate">CLI+TUI</span> |  | <span class="crate">Daemon</span>    |  | <span class="crate">Ext</span>   |
-  | <span class="tech">clap</span>    |  | <span class="tech">notify</span>    |  | <span class="tech">TS/MV3</span>|
-  | <span class="tech">ratatui</span> |  | <span class="tech">IPC sock</span>  |  |       |
-  +---------+  +-----------+  +-------+
+  <span class="note">Browsers</span>                      <span class="note">Storage</span>
+  ┌──────────┐                  ┌─────────────────────┐
+  │ Chrome   │───┐              │  <span class="class">~/.browsync/</span>        │
+  │ Firefox  │───┤              │  browsync.db         │
+  │ Safari   │───┼──<span class="rel">reads</span>──┐    │  ┌───────────────┐   │
+  │ Edge     │───┤         │    │  │ <span class="iface">bookmarks</span>     │   │
+  │ Brave    │───┤         │    │  │ <span class="iface">history</span>       │   │
+  │ Arc      │───┘         │    │  │ <span class="iface">auth_entries</span>  │   │
+                           │    │  │ <span class="iface">bookmarks_fts</span> │   │
+                           ▼    │  │ <span class="iface">history_fts</span>   │   │
+  ┌────────────────────────┐    │  │ <span class="iface">sync_log</span>      │   │
+  │  <span class="class">browsync-core</span>          │    │  └───────────────┘   │
+  │                        │    └─────────────────────┘
+  │  parsers/              │              ▲
+  │    chrome  <span class="rel">(JSON+SQL)</span>   │──<span class="rel">writes</span>───────┘
+  │    firefox <span class="rel">(SQLite)</span>    │
+  │    safari  <span class="rel">(plist)</span>     │
+  │                        │
+  │  sync     <span class="rel">(dedup)</span>      │
+  │  exporters <span class="rel">(HTML/JSON</span>  │
+  │            <span class="rel">/CSV)</span>       │
+  │  keychain <span class="rel">(auth meta)</span>  │
+  └────────────┬───────────┘
+               │
+     ┌─────────┼─────────┐
+     ▼         ▼         ▼
+  ┌────────┐ ┌────────┐ ┌──────────┐
+  │<span class="class">CLI+TUI</span> │ │<span class="class">Daemon</span>  │ │<span class="class">Extension</span>│
+  │        │ │        │ │          │
+  │ clap   │ │ notify │ │ MV3      │
+  │ ratatui│ │ IPC    │ │ Native   │
+  │        │ │ sched  │ │ Messaging│
+  └────────┘ └────────┘ └──────────┘
 </pre>
   </div>
 
-  <div class="stack-grid" style="margin-top: 2rem;">
-    <div class="stack-item"><span class="label">Language</span><span class="value">Rust (Edition 2024)</span></div>
-    <div class="stack-item"><span class="label">CLI</span><span class="value">clap (derive)</span></div>
-    <div class="stack-item"><span class="label">TUI</span><span class="value">ratatui + crossterm</span></div>
-    <div class="stack-item"><span class="label">Database</span><span class="value">SQLite + FTS5</span></div>
-    <div class="stack-item"><span class="label">File Watch</span><span class="value">notify</span></div>
-    <div class="stack-item"><span class="label">Extension</span><span class="value">TypeScript MV3</span></div>
-    <div class="stack-item"><span class="label">Tests</span><span class="value">46 (100% pass)</span></div>
-    <div class="stack-item"><span class="label">Platforms</span><span class="value">macOS + Windows</span></div>
+  <div class="diagram">
+    <div class="diagram-title">Data Flow &mdash; Import Pipeline</div>
+<pre>
+  Browser Profile          Parser              Sync Engine           Database
+  ─────────────            ──────              ───────────           ────────
+       │                      │                     │                   │
+       │  <span class="rel">read native</span>        │                     │                   │
+       │─────────────────────▶│                     │                   │
+       │                      │  <span class="rel">normalize to</span>       │                   │
+       │                      │  <span class="rel">unified model</span>      │                   │
+       │                      │────────────────────▶│                   │
+       │                      │                     │  <span class="rel">dedup by URL</span>     │
+       │                      │                     │  <span class="rel">merge metadata</span>   │
+       │                      │                     │─────────────────▶│
+       │                      │                     │                   │  <span class="rel">upsert +</span>
+       │                      │                     │                   │  <span class="rel">FTS5 index</span>
+       │                      │                     │  <span class="rel">log sync</span>        │
+       │                      │                     │─────────────────▶│
+</pre>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Crate Dependency Graph</div>
+<pre>
+  <span class="class">browsync-cli</span> ──────────▶ <span class="class">browsync-core</span>
+       │                       ▲
+       │                       │
+  <span class="class">browsync-daemon</span> ────────────┘
+
+  <span class="class">browsync-core</span>:   rusqlite, serde, chrono, uuid, plist, dirs
+  <span class="class">browsync-cli</span>:    clap, ratatui, crossterm
+  <span class="class">browsync-daemon</span>: notify, tokio (file watchers, IPC)
+  <span class="class">extension/</span>:      TypeScript, WebExtension Manifest V3
+</pre>
+  </div>
+
+  <table class="stack-table" style="margin-top: 1.5rem;">
+    <tr><td>Runtime</td><td>Rust Edition 2024, single static binary</td></tr>
+    <tr><td>CLI framework</td><td>clap v4 (derive macros)</td></tr>
+    <tr><td>TUI</td><td>ratatui 0.29 + crossterm 0.28</td></tr>
+    <tr><td>Storage</td><td>rusqlite 0.32 (bundled SQLite, FTS5)</td></tr>
+    <tr><td>File watching</td><td>notify 7 (FSEvents / inotify / ReadDirectoryChanges)</td></tr>
+    <tr><td>IPC</td><td>Unix domain sockets (macOS/Linux), PID file (Windows)</td></tr>
+    <tr><td>Extension</td><td>TypeScript, Manifest V3, Native Messaging</td></tr>
+  </table>
+</section>
+
+<!-- Command Reference -->
+<section id="reference">
+  <h2>Command reference</h2>
+  <p class="section-lead">All subcommands and their options.</p>
+
+  <table class="ref-table">
+    <thead><tr><th>Command</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td>browsync detect</td><td>Scan for installed browsers and report available data (bookmarks, history, credentials).</td></tr>
+      <tr><td>browsync import [--browser &lt;name&gt;]</td><td>Import data from detected browsers. Supports <code>--bookmarks-only</code> and <code>--history-only</code> flags.</td></tr>
+      <tr><td>browsync search &lt;query&gt;</td><td>Full-text search across all imported data. <code>--bookmarks</code> / <code>--history</code> to filter. <code>-n</code> to limit results.</td></tr>
+      <tr><td>browsync export --format &lt;fmt&gt;</td><td>Export bookmarks to <code>html</code>, <code>json</code>, or <code>csv</code>. Optional <code>--output &lt;path&gt;</code> and <code>--browser</code> filter.</td></tr>
+      <tr><td>browsync open &lt;url&gt; --browser &lt;name&gt;</td><td>Open a URL in a specific browser via the system launcher.</td></tr>
+      <tr><td>browsync tui</td><td>Launch the interactive terminal interface.</td></tr>
+      <tr><td>browsync status</td><td>Display database statistics and recent sync operations.</td></tr>
+      <tr><td>browsync auth list</td><td>List saved login domains and usernames across all browsers (no passwords stored).</td></tr>
+      <tr><td>browsync auth migrate --from &lt;a&gt; --to &lt;b&gt;</td><td>Report which sites need re-login when switching from browser A to B.</td></tr>
+      <tr><td>browsyncd start | stop | status</td><td>Control the background sync daemon.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top: 2.5rem; font-size: 1.1rem;">Example session</h3>
+<pre class="terminal"><span class="ps">$</span> browsync detect
+<span class="out">  [+] Chrome   active (bookmarks, history, logins)
+  [+] Safari   active (bookmarks, history)
+  2 browser(s) with importable data</span>
+
+<span class="ps">$</span> browsync import --browser chrome
+<span class="out">  Importing from Chrome...
+    Bookmarks: 3,061 imported
+    History:   5,614 imported
+  Database totals: 3,061 bookmarks, 5,614 history entries</span>
+
+<span class="ps">$</span> browsync search <span class="hl">"kubernetes"</span> -n 3
+<span class="out">  Bookmarks (3 results):
+    1. How we run Kubernetes in Kubernetes [C]
+       https://kubernetes.io/blog/...
+    2. RBAC Support in Kubernetes [C]
+       https://kubernetes.io/blog/...
+    3. kubernetes/README.md at master [C]
+       https://github.com/kubernetes/kubernetes/...</span>
+
+<span class="ps">$</span> browsync export --format html -o bookmarks.html
+<span class="out">  Exported 3,061 bookmarks to bookmarks.html</span></pre>
+
+  <h3 style="margin-top: 2.5rem; font-size: 1.1rem;">Terminal UI</h3>
+  <div class="tui-mock">
+<span class="dim">+--</span> browsync <span class="dim">-----------------------------------------------+</span>
+| <span class="tab-active">[Bookmarks]</span> [History] [Search] [Status]                  |
+<span class="dim">+-----------------------------------------------------------+</span>
+| <span class="tag">[C]</span> GitHub                          <span class="url">github.com</span>          |
+| <span class="tag">[C]</span> Kubernetes Docs                 <span class="url">kubernetes.io</span>       |
+| <span class="tag">[C]</span> Stack Overflow                  <span class="url">stackoverflow.com</span>   |
+| <span class="tag">[F]</span> MDN Web Docs                    <span class="url">developer.mozilla.org</span>|
+| <span class="tag">[S]</span> Apple Developer                 <span class="url">developer.apple.com</span> |
+<span class="dim">+-----------------------------------------------------------+</span>
+| <span class="key">/</span> search  <span class="key">1-4</span> tabs  <span class="key">j/k</span> navigate  <span class="key">o</span> open  <span class="key">q</span> quit     |
+<span class="dim">+-----------------------------------------------------------+</span>
   </div>
 </section>
 
+<!-- Browser Extension -->
+<section>
+  <h2>Browser extension</h2>
+  <p class="section-lead">Real-time bookmark and tab sync via WebExtension Native Messaging (Manifest V3).</p>
+<pre class="terminal"><span class="ps">#</span> <span class="out">Build</span>
+<span class="ps">$</span> cd extension && npm install && npm run build
+
+<span class="ps">#</span> <span class="out">Chrome: chrome://extensions > Developer Mode > Load unpacked</span>
+<span class="ps">#</span> <span class="out">Firefox: about:debugging > Load Temporary Add-on</span>
+
+<span class="ps">#</span> <span class="out">Install native messaging host (macOS)</span>
+<span class="ps">$</span> cp extension/native-messaging-host.json \
+    ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/com.browsync.daemon.json</pre>
+</section>
+
+</div>
+
 <footer>
-  <p>Built with Rust. <a href="https://github.com/ishaileshpant/browsync">View on GitHub</a></p>
+  <p>MIT License &middot; <a href="https://github.com/ishaileshpant/browsync">github.com/ishaileshpant/browsync</a></p>
 </footer>
 
 <script>
 function showTab(id) {
   document.querySelectorAll('.install-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.install-content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.install-panel').forEach(c => c.classList.remove('active'));
   event.target.classList.add('active');
   document.getElementById('tab-' + id).classList.add('active');
 }
-
 function copyCmd(btn) {
-  const cmd = btn.parentElement.textContent.replace('Copy', '').replace('$', '').replace('PS>', '').trim();
+  const cmd = btn.parentElement.querySelector('code').textContent;
   navigator.clipboard.writeText(cmd);
-  btn.textContent = 'Copied!';
+  btn.textContent = 'Copied';
   setTimeout(() => btn.textContent = 'Copy', 1500);
 }
 </script>
-
 </body>
 </html>
