@@ -8,138 +8,136 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #fafafa;
-    --bg-code: #f4f4f5;
-    --bg-card: #ffffff;
-    --text: #18181b;
-    --text-secondary: #52525b;
-    --text-muted: #71717a;
-    --accent: #2563eb;
-    --accent-light: #dbeafe;
-    --border: #e4e4e7;
-    --border-strong: #d4d4d8;
-    --success: #16a34a;
-    --warn: #ca8a04;
+    --bg: #fafafa; --bg-code: #f4f4f5; --bg-card: #ffffff;
+    --text: #18181b; --text-s: #52525b; --text-m: #71717a;
+    --accent: #2563eb; --accent-bg: #dbeafe;
+    --border: #e4e4e7; --border-s: #d4d4d8;
+    --green: #16a34a; --amber: #d97706; --red: #dc2626;
     --mono: 'IBM Plex Mono', monospace;
     --sans: 'Inter', -apple-system, system-ui, sans-serif;
-    --radius: 8px;
-    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-    --shadow-lg: 0 4px 12px rgba(0,0,0,0.08);
+    --r: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,.06);
+    --shadow-lg: 0 4px 16px rgba(0,0,0,.08);
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #09090b;
-      --bg-code: #18181b;
-      --bg-card: #111113;
-      --text: #f4f4f5;
-      --text-secondary: #a1a1aa;
-      --text-muted: #71717a;
-      --accent: #60a5fa;
-      --accent-light: #1e3a5f;
-      --border: #27272a;
-      --border-strong: #3f3f46;
-      --shadow: 0 1px 3px rgba(0,0,0,0.3);
-      --shadow-lg: 0 4px 12px rgba(0,0,0,0.4);
+      --bg: #09090b; --bg-code: #18181b; --bg-card: #111113;
+      --text: #f4f4f5; --text-s: #a1a1aa; --text-m: #71717a;
+      --accent: #60a5fa; --accent-bg: #1e3a5f;
+      --border: #27272a; --border-s: #3f3f46;
+      --shadow: 0 1px 3px rgba(0,0,0,.3);
+      --shadow-lg: 0 4px 16px rgba(0,0,0,.4);
     }
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.7; -webkit-font-smoothing: antialiased; }
-
-  /* Layout */
-  .container { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
+  .container { max-width: 880px; margin: 0 auto; padding: 0 1.5rem; }
 
   /* Nav */
   nav { position: sticky; top: 0; z-index: 100; background: var(--bg); border-bottom: 1px solid var(--border); }
-  .nav-inner { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; height: 56px; display: flex; align-items: center; justify-content: space-between; }
-  .nav-logo { font-family: var(--mono); font-weight: 600; font-size: 1.1rem; color: var(--text); text-decoration: none; }
+  .nav-inner { max-width: 880px; margin: 0 auto; padding: 0 1.5rem; height: 52px; display: flex; align-items: center; justify-content: space-between; }
+  .nav-logo { font-family: var(--mono); font-weight: 600; font-size: 1rem; color: var(--text); text-decoration: none; }
   .nav-logo span { color: var(--accent); }
-  .nav-links { display: flex; gap: 1.75rem; }
-  .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 0.875rem; font-weight: 500; transition: color 0.15s; }
+  .nav-links { display: flex; gap: 1.5rem; }
+  .nav-links a { color: var(--text-m); text-decoration: none; font-size: .85rem; font-weight: 500; }
   .nav-links a:hover { color: var(--text); }
 
-  /* Hero */
-  .hero { padding: 5rem 0 4rem; border-bottom: 1px solid var(--border); }
-  .hero h1 { font-size: 2.25rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 1rem; }
-  .hero .lead { font-size: 1.1rem; color: var(--text-secondary); max-width: 600px; margin-bottom: 2rem; }
-  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 2rem; }
-  .hero-meta span { display: flex; align-items: center; gap: 0.35rem; }
-  .hero-meta .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
-  .dot-green { background: var(--success); }
-  .dot-blue { background: var(--accent); }
+  /* Sections */
+  section { padding: 3.5rem 0; border-bottom: 1px solid var(--border); }
+  section:last-of-type { border-bottom: none; }
+  h1 { font-size: 2rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.25; margin-bottom: .75rem; }
+  h2 { font-size: 1.35rem; font-weight: 700; letter-spacing: -.015em; margin-bottom: .5rem; }
+  h3 { font-size: 1.05rem; font-weight: 600; margin: 2rem 0 .75rem; }
+  .lead { font-size: 1.05rem; color: var(--text-s); max-width: 580px; margin-bottom: 1.75rem; }
+  .section-lead { color: var(--text-s); margin-bottom: 1.75rem; }
+
+  /* Meta badges */
+  .meta { display: flex; gap: 1.25rem; flex-wrap: wrap; font-size: .82rem; color: var(--text-m); margin-bottom: 1.75rem; }
 
   /* Install */
-  .install-section { margin-top: 2rem; }
-  .install-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 0; }
-  .install-tab { padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 500; color: var(--text-muted); border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; font-family: var(--sans); }
-  .install-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-  .install-panel { display: none; padding: 1rem 0; }
-  .install-panel.active { display: block; }
-  .install-cmd { font-family: var(--mono); font-size: 0.9rem; background: var(--bg-code); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.875rem 1rem; position: relative; overflow-x: auto; }
-  .install-cmd .prompt { color: var(--text-muted); user-select: none; }
-  .install-cmd code { color: var(--text); }
-  .copy-btn { position: absolute; top: 0.5rem; right: 0.5rem; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-family: var(--sans); }
-  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .install-box { border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; margin-top: .5rem; }
+  .install-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg-code); }
+  .tab-btn { flex: 1; padding: .55rem; font-size: .82rem; font-weight: 500; color: var(--text-m); border: none; background: none; cursor: pointer; font-family: var(--sans); text-align: center; }
+  .tab-btn.active { color: var(--accent); background: var(--bg-card); }
+  .tab-panel { display: none; padding: 1rem; background: var(--bg-card); }
+  .tab-panel.active { display: block; }
+  .cmd { font-family: var(--mono); font-size: .85rem; background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; padding: .7rem .9rem; position: relative; white-space: nowrap; overflow-x: auto; }
+  .cmd .p { color: var(--text-m); user-select: none; }
+  .cmd .copy { position: absolute; top: .4rem; right: .4rem; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-m); padding: .2rem .45rem; border-radius: 4px; cursor: pointer; font-size: .72rem; font-family: var(--sans); }
+  .cmd .copy:hover { border-color: var(--accent); color: var(--accent); }
 
-  /* Section */
-  section { padding: 4rem 0; border-bottom: 1px solid var(--border); }
-  section:last-of-type { border-bottom: none; }
-  section h2 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
-  section .section-lead { color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.95rem; }
+  /* Feature grid */
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .feat { border: 1px solid var(--border); border-radius: var(--r); padding: 1.1rem 1.25rem; }
+  .feat strong { display: block; font-size: .92rem; margin-bottom: .3rem; }
+  .feat p { color: var(--text-s); font-size: .85rem; margin: 0; line-height: 1.55; }
+  @media (max-width: 640px) { .features { grid-template-columns: 1fr; } }
 
-  /* Command ref table */
-  .ref-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-  .ref-table th { text-align: left; padding: 0.625rem 0; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid var(--border-strong); }
-  .ref-table td { padding: 0.625rem 0; border-bottom: 1px solid var(--border); vertical-align: top; }
-  .ref-table td:first-child { font-family: var(--mono); font-size: 0.85rem; color: var(--accent); padding-right: 1.5rem; white-space: nowrap; }
+  /* Ref table */
+  .ref-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  .ref-table th { text-align: left; padding: .55rem 0; color: var(--text-m); font-weight: 500; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; border-bottom: 2px solid var(--border-s); }
+  .ref-table td { padding: .55rem 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .ref-table td:first-child { font-family: var(--mono); font-size: .82rem; color: var(--accent); padding-right: 1.25rem; white-space: nowrap; }
 
-  /* Code block */
-  pre.terminal { font-family: var(--mono); font-size: 0.82rem; line-height: 1.8; background: var(--bg-code); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; overflow-x: auto; margin: 1.5rem 0; }
-  pre.terminal .ps { color: var(--text-muted); user-select: none; }
-  pre.terminal .out { color: var(--text-secondary); }
-  pre.terminal .hl { color: var(--accent); }
+  /* Terminal block */
+  pre.term { font-family: var(--mono); font-size: .8rem; line-height: 1.75; background: var(--bg-code); border: 1px solid var(--border); border-radius: var(--r); padding: 1.1rem; overflow-x: auto; margin: 1.25rem 0; }
+  pre.term .ps { color: var(--text-m); user-select: none; }
+  pre.term .out { color: var(--text-s); }
+  pre.term .hl { color: var(--accent); }
 
-  /* UML-style diagrams */
-  .diagram { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin: 2rem 0; box-shadow: var(--shadow); overflow-x: auto; }
-  .diagram-title { font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 1rem; }
-  .diagram pre { font-family: var(--mono); font-size: 0.78rem; line-height: 1.6; color: var(--text-secondary); margin: 0; }
-  .diagram .class { color: var(--accent); font-weight: 600; }
-  .diagram .iface { color: var(--success); }
-  .diagram .rel { color: var(--text-muted); }
-  .diagram .note { color: var(--warn); }
+  /* TUI mockup — uses a real table for alignment */
+  .tui-frame { background: #0f1117; border: 1px solid #2a2a3a; border-radius: var(--r); box-shadow: var(--shadow-lg); overflow: hidden; margin: 1.5rem 0; font-family: var(--mono); font-size: .8rem; line-height: 1; }
+  .tui-titlebar { background: #191b24; padding: .55rem .9rem; color: #9ca3af; font-size: .75rem; border-bottom: 1px solid #2a2a3a; display: flex; align-items: center; gap: .5rem; }
+  .tui-dots { display: flex; gap: 5px; }
+  .tui-dots span { width: 10px; height: 10px; border-radius: 50%; }
+  .tui-dot-r { background: #ef4444; }
+  .tui-dot-y { background: #eab308; }
+  .tui-dot-g { background: #22c55e; }
+  .tui-tabs { background: #141620; padding: .65rem .9rem; border-bottom: 1px solid #2a2a3a; display: flex; gap: 1.25rem; font-size: .78rem; }
+  .tui-tabs span { color: #6b7280; }
+  .tui-tabs .active { color: #22d3ee; font-weight: 600; }
+  .tui-body { padding: 0; }
+  .tui-body table { width: 100%; border-collapse: collapse; }
+  .tui-body td { padding: .45rem .9rem; color: #d4d4d8; font-size: .8rem; border-bottom: 1px solid #1e2030; white-space: nowrap; }
+  .tui-body tr:last-child td { border-bottom: none; }
+  .tui-body tr:hover td { background: #1a1d2e; }
+  .tui-body .tag { color: #facc15; font-weight: 500; width: 30px; }
+  .tui-body .title { color: #e5e7eb; }
+  .tui-body .url { color: #6b7280; text-align: right; }
+  .tui-body .sel td { background: #1e293b; }
+  .tui-body .sel .title { color: #22d3ee; }
+  .tui-statusbar { background: #141620; padding: .5rem .9rem; border-top: 1px solid #2a2a3a; color: #6b7280; font-size: .72rem; display: flex; gap: 1.5rem; }
+  .tui-statusbar .k { color: #22d3ee; }
 
-  /* Feature list */
-  .feature-list { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
-  .feature-list li { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; box-shadow: var(--shadow); }
-  .feature-list li strong { display: block; margin-bottom: 0.35rem; font-size: 0.95rem; }
-  .feature-list li p { color: var(--text-secondary); font-size: 0.875rem; margin: 0; }
+  /* Architecture — styled boxes */
+  .arch { display: grid; grid-template-columns: 1fr; gap: 1.25rem; margin: 1.5rem 0; }
+  .arch-row { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+  .arch-box { border: 1px solid var(--border-s); border-radius: var(--r); padding: .9rem 1.1rem; text-align: center; min-width: 140px; flex: 1; }
+  .arch-box.primary { border-color: var(--accent); background: var(--accent-bg); }
+  .arch-box h4 { font-family: var(--mono); font-size: .85rem; font-weight: 600; margin-bottom: .3rem; }
+  .arch-box p { font-size: .78rem; color: var(--text-s); margin: 0; line-height: 1.4; }
+  .arch-arrow { text-align: center; color: var(--text-m); font-size: 1.2rem; padding: .25rem 0; }
 
-  /* Stack grid */
+  /* Data flow */
+  .flow { border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; margin: 1.5rem 0; }
+  .flow-step { display: flex; align-items: stretch; border-bottom: 1px solid var(--border); }
+  .flow-step:last-child { border-bottom: none; }
+  .flow-num { width: 40px; background: var(--bg-code); display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: .8rem; font-weight: 600; color: var(--accent); border-right: 1px solid var(--border); flex-shrink: 0; }
+  .flow-content { padding: .7rem 1rem; flex: 1; }
+  .flow-content strong { font-size: .88rem; display: block; margin-bottom: .15rem; }
+  .flow-content p { font-size: .82rem; color: var(--text-s); margin: 0; }
+
+  /* Stack table */
   .stack-table { width: 100%; border-collapse: collapse; }
-  .stack-table td { padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-  .stack-table td:first-child { font-weight: 600; width: 140px; color: var(--text-secondary); }
-  .stack-table td:last-child { font-family: var(--mono); font-size: 0.85rem; }
-
-  /* TUI mockup */
-  .tui-mock { font-family: var(--mono); font-size: 0.78rem; line-height: 1.5; background: #1a1a2e; color: #d4d4d8; border-radius: var(--radius); padding: 1.25rem; overflow-x: auto; box-shadow: var(--shadow-lg); margin: 2rem 0; }
-  .tui-mock .chrome { color: var(--accent); }
-  .tui-mock .tab-active { color: #22d3ee; font-weight: bold; }
-  .tui-mock .tag { color: #facc15; }
-  .tui-mock .url { color: #71717a; }
-  .tui-mock .dim { color: #3f3f46; }
-  .tui-mock .key { color: #22d3ee; }
+  .stack-table td { padding: .45rem 0; border-bottom: 1px solid var(--border); font-size: .88rem; }
+  .stack-table td:first-child { font-weight: 600; width: 130px; color: var(--text-s); }
+  .stack-table td:last-child { font-family: var(--mono); font-size: .82rem; }
 
   /* Footer */
-  footer { padding: 2.5rem 0; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+  footer { padding: 2rem 0; text-align: center; color: var(--text-m); font-size: .82rem; }
   footer a { color: var(--accent); text-decoration: none; }
   footer a:hover { text-decoration: underline; }
-
-  @media (max-width: 640px) {
-    .hero h1 { font-size: 1.75rem; }
-    .nav-links { gap: 1rem; }
-    .feature-list { grid-template-columns: 1fr; }
-    .tui-mock { font-size: 0.65rem; }
-  }
 </style>
 </head>
 <body>
@@ -158,39 +156,30 @@
 
 <div class="container">
 
+<!-- Hero -->
 <section class="hero">
   <h1>Cross-browser data consolidation</h1>
   <p class="lead">A Rust CLI toolchain that unifies bookmarks, browsing history, and login metadata across Chrome, Firefox, Safari, Edge, Brave, and Arc into a single searchable database.</p>
-  <div class="hero-meta">
-    <span><span class="dot dot-green"></span> v0.1.0</span>
+  <div class="meta">
+    <span>v0.1.0</span>
     <span>Rust &middot; Edition 2024</span>
-    <span>46 tests passing</span>
+    <span>46 tests</span>
     <span>macOS / Windows / Linux</span>
   </div>
-
-  <div class="install-section" id="install">
+  <div class="install-box" id="install">
     <div class="install-tabs">
-      <button class="install-tab active" onclick="showTab('mac')">macOS / Linux</button>
-      <button class="install-tab" onclick="showTab('win')">Windows</button>
-      <button class="install-tab" onclick="showTab('cargo')">cargo install</button>
+      <button class="tab-btn active" onclick="showTab('mac')">macOS / Linux</button>
+      <button class="tab-btn" onclick="showTab('win')">Windows</button>
+      <button class="tab-btn" onclick="showTab('cargo')">cargo install</button>
     </div>
-    <div class="install-panel active" id="tab-mac">
-      <div class="install-cmd">
-        <span class="prompt">$ </span><code>curl -fsSL https://ishaileshpant.github.io/browsync/install.sh | bash</code>
-        <button class="copy-btn" onclick="copyCmd(this)">Copy</button>
-      </div>
+    <div class="tab-panel active" id="tab-mac">
+      <div class="cmd"><span class="p">$ </span>curl -fsSL https://ishaileshpant.github.io/browsync/install.sh | bash<button class="copy" onclick="copyCmd(this)">Copy</button></div>
     </div>
-    <div class="install-panel" id="tab-win">
-      <div class="install-cmd">
-        <span class="prompt">PS&gt; </span><code>irm https://ishaileshpant.github.io/browsync/install.ps1 | iex</code>
-        <button class="copy-btn" onclick="copyCmd(this)">Copy</button>
-      </div>
+    <div class="tab-panel" id="tab-win">
+      <div class="cmd"><span class="p">PS&gt; </span>irm https://ishaileshpant.github.io/browsync/install.ps1 | iex<button class="copy" onclick="copyCmd(this)">Copy</button></div>
     </div>
-    <div class="install-panel" id="tab-cargo">
-      <div class="install-cmd">
-        <span class="prompt">$ </span><code>cargo install --git https://github.com/ishaileshpant/browsync browsync-cli</code>
-        <button class="copy-btn" onclick="copyCmd(this)">Copy</button>
-      </div>
+    <div class="tab-panel" id="tab-cargo">
+      <div class="cmd"><span class="p">$ </span>cargo install --git https://github.com/ishaileshpant/browsync browsync-cli<button class="copy" onclick="copyCmd(this)">Copy</button></div>
     </div>
   </div>
 </section>
@@ -198,180 +187,149 @@
 <!-- Capabilities -->
 <section>
   <h2>Capabilities</h2>
-  <ul class="feature-list">
-    <li><strong>Multi-browser import</strong><p>Reads native data directly from Chrome (JSON), Firefox (SQLite), Safari (plist), and all Chromium derivatives. No manual export step.</p></li>
-    <li><strong>Full-text search</strong><p>FTS5-indexed SQLite database. Prefix matching, multi-word queries across URLs, titles, folder paths, and tags.</p></li>
-    <li><strong>Format-agnostic export</strong><p>Netscape HTML (universally importable), Chrome-compatible JSON, and CSV. Filter by source browser.</p></li>
-    <li><strong>Terminal UI</strong><p>Ratatui-based interface with bookmark tree, history timeline, live search, and direct URL opening. Vim-style navigation.</p></li>
-    <li><strong>Background daemon</strong><p>File-system watcher on browser profile directories. Debounced incremental sync with periodic full sweeps. Unix socket IPC.</p></li>
-    <li><strong>Auth migration</strong><p>Extracts login metadata (domain + username, never passwords) from browser credential stores. Generates migration reports between browsers.</p></li>
-  </ul>
+  <div class="features">
+    <div class="feat"><strong>Multi-browser import</strong><p>Reads native data from Chrome (JSON), Firefox (SQLite), Safari (plist), and all Chromium derivatives directly. No manual export needed.</p></div>
+    <div class="feat"><strong>Full-text search</strong><p>FTS5-indexed SQLite database. Prefix matching and multi-word queries across URLs, titles, folders, and tags.</p></div>
+    <div class="feat"><strong>Format-agnostic export</strong><p>Netscape HTML (universally importable), Chrome-compatible JSON, and CSV with proper escaping. Filter by source browser.</p></div>
+    <div class="feat"><strong>Terminal UI</strong><p>Ratatui-based interface with bookmark tree, history timeline, live search, and direct URL opening. Vim-style navigation.</p></div>
+    <div class="feat"><strong>Background daemon</strong><p>File-system watcher on browser profiles. Debounced incremental sync with periodic full sweeps. Unix socket IPC.</p></div>
+    <div class="feat"><strong>Auth migration</strong><p>Extracts login metadata (domain + username only) from credential stores. Generates migration reports between browsers.</p></div>
+  </div>
 </section>
 
 <!-- Architecture -->
 <section id="architecture">
   <h2>Architecture</h2>
-  <p class="section-lead">Three Rust crates plus a Manifest V3 browser extension.</p>
+  <p class="section-lead">Three Rust crates and a Manifest V3 browser extension.</p>
 
-  <div class="diagram">
-    <div class="diagram-title">Component Diagram</div>
-<pre>
-  <span class="note">Browsers</span>                      <span class="note">Storage</span>
-  ┌──────────┐                  ┌─────────────────────┐
-  │ Chrome   │───┐              │  <span class="class">~/.browsync/</span>        │
-  │ Firefox  │───┤              │  browsync.db         │
-  │ Safari   │───┼──<span class="rel">reads</span>──┐    │  ┌───────────────┐   │
-  │ Edge     │───┤         │    │  │ <span class="iface">bookmarks</span>     │   │
-  │ Brave    │───┤         │    │  │ <span class="iface">history</span>       │   │
-  │ Arc      │───┘         │    │  │ <span class="iface">auth_entries</span>  │   │
-                           │    │  │ <span class="iface">bookmarks_fts</span> │   │
-                           ▼    │  │ <span class="iface">history_fts</span>   │   │
-  ┌────────────────────────┐    │  │ <span class="iface">sync_log</span>      │   │
-  │  <span class="class">browsync-core</span>          │    │  └───────────────┘   │
-  │                        │    └─────────────────────┘
-  │  parsers/              │              ▲
-  │    chrome  <span class="rel">(JSON+SQL)</span>   │──<span class="rel">writes</span>───────┘
-  │    firefox <span class="rel">(SQLite)</span>    │
-  │    safari  <span class="rel">(plist)</span>     │
-  │                        │
-  │  sync     <span class="rel">(dedup)</span>      │
-  │  exporters <span class="rel">(HTML/JSON</span>  │
-  │            <span class="rel">/CSV)</span>       │
-  │  keychain <span class="rel">(auth meta)</span>  │
-  └────────────┬───────────┘
-               │
-     ┌─────────┼─────────┐
-     ▼         ▼         ▼
-  ┌────────┐ ┌────────┐ ┌──────────┐
-  │<span class="class">CLI+TUI</span> │ │<span class="class">Daemon</span>  │ │<span class="class">Extension</span>│
-  │        │ │        │ │          │
-  │ clap   │ │ notify │ │ MV3      │
-  │ ratatui│ │ IPC    │ │ Native   │
-  │        │ │ sched  │ │ Messaging│
-  └────────┘ └────────┘ └──────────┘
-</pre>
+  <div class="arch">
+    <div class="arch-row">
+      <div class="arch-box"><h4>Chrome</h4><p>JSON + SQLite</p></div>
+      <div class="arch-box"><h4>Firefox</h4><p>places.sqlite</p></div>
+      <div class="arch-box"><h4>Safari</h4><p>plist + SQLite</p></div>
+      <div class="arch-box"><h4>Edge / Brave / Arc</h4><p>Chromium family</p></div>
+    </div>
+    <div class="arch-arrow">&#x25BC;</div>
+    <div class="arch-row">
+      <div class="arch-box primary" style="max-width: 100%; flex: none; width: 100%;">
+        <h4>browsync-core</h4>
+        <p>Parsers &rarr; Sync engine (dedup, merge) &rarr; SQLite + FTS5 &rarr; Exporters (HTML, JSON, CSV)</p>
+      </div>
+    </div>
+    <div class="arch-arrow">&#x25BC;</div>
+    <div class="arch-row">
+      <div class="arch-box"><h4>browsync-cli</h4><p>clap + ratatui TUI<br>10 subcommands</p></div>
+      <div class="arch-box"><h4>browsync-daemon</h4><p>notify file watcher<br>Unix socket IPC</p></div>
+      <div class="arch-box"><h4>extension/</h4><p>TypeScript MV3<br>Native Messaging</p></div>
+      <div class="arch-box"><h4>~/.browsync/</h4><p>browsync.db<br>FTS5 indexes</p></div>
+    </div>
   </div>
 
-  <div class="diagram">
-    <div class="diagram-title">Data Flow &mdash; Import Pipeline</div>
-<pre>
-  Browser Profile          Parser              Sync Engine           Database
-  ─────────────            ──────              ───────────           ────────
-       │                      │                     │                   │
-       │  <span class="rel">read native</span>        │                     │                   │
-       │─────────────────────▶│                     │                   │
-       │                      │  <span class="rel">normalize to</span>       │                   │
-       │                      │  <span class="rel">unified model</span>      │                   │
-       │                      │────────────────────▶│                   │
-       │                      │                     │  <span class="rel">dedup by URL</span>     │
-       │                      │                     │  <span class="rel">merge metadata</span>   │
-       │                      │                     │─────────────────▶│
-       │                      │                     │                   │  <span class="rel">upsert +</span>
-       │                      │                     │                   │  <span class="rel">FTS5 index</span>
-       │                      │                     │  <span class="rel">log sync</span>        │
-       │                      │                     │─────────────────▶│
-</pre>
+  <h3>Import pipeline</h3>
+  <div class="flow">
+    <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><strong>Read</strong><p>Parser reads browser profile: Chrome Bookmarks (JSON), History (SQLite), Firefox places.sqlite, Safari Bookmarks.plist. Copies locked files to temp before reading.</p></div></div>
+    <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><strong>Normalize</strong><p>Converts browser-specific formats (WebKit timestamps, plist structures, Firefox IDs) into unified Bookmark and HistoryEntry models with UUID primary keys.</p></div></div>
+    <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><strong>Deduplicate</strong><p>Groups by URL. Same URL from multiple browsers merges into one entry. Last-write-wins for metadata, union-merge for tags. Visit counts are summed.</p></div></div>
+    <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><strong>Store</strong><p>Upserts into SQLite with FTS5 triggers. Full-text indexes on url, title, folder_path, and tags. Sync operation logged with timestamp and item count.</p></div></div>
   </div>
 
-  <div class="diagram">
-    <div class="diagram-title">Crate Dependency Graph</div>
-<pre>
-  <span class="class">browsync-cli</span> ──────────▶ <span class="class">browsync-core</span>
-       │                       ▲
-       │                       │
-  <span class="class">browsync-daemon</span> ────────────┘
-
-  <span class="class">browsync-core</span>:   rusqlite, serde, chrono, uuid, plist, dirs
-  <span class="class">browsync-cli</span>:    clap, ratatui, crossterm
-  <span class="class">browsync-daemon</span>: notify, tokio (file watchers, IPC)
-  <span class="class">extension/</span>:      TypeScript, WebExtension Manifest V3
-</pre>
-  </div>
-
-  <table class="stack-table" style="margin-top: 1.5rem;">
+  <h3>Tech stack</h3>
+  <table class="stack-table">
     <tr><td>Runtime</td><td>Rust Edition 2024, single static binary</td></tr>
-    <tr><td>CLI framework</td><td>clap v4 (derive macros)</td></tr>
+    <tr><td>CLI</td><td>clap v4 (derive macros), 10 subcommands</td></tr>
     <tr><td>TUI</td><td>ratatui 0.29 + crossterm 0.28</td></tr>
-    <tr><td>Storage</td><td>rusqlite 0.32 (bundled SQLite, FTS5)</td></tr>
+    <tr><td>Storage</td><td>rusqlite 0.32, bundled SQLite with FTS5</td></tr>
     <tr><td>File watching</td><td>notify 7 (FSEvents / inotify / ReadDirectoryChanges)</td></tr>
-    <tr><td>IPC</td><td>Unix domain sockets (macOS/Linux), PID file (Windows)</td></tr>
+    <tr><td>IPC</td><td>Unix domain sockets, PID-file fallback on Windows</td></tr>
     <tr><td>Extension</td><td>TypeScript, Manifest V3, Native Messaging</td></tr>
+    <tr><td>Tests</td><td>46 unit + integration, cargo test</td></tr>
   </table>
 </section>
 
 <!-- Command Reference -->
 <section id="reference">
   <h2>Command reference</h2>
-  <p class="section-lead">All subcommands and their options.</p>
-
   <table class="ref-table">
     <thead><tr><th>Command</th><th>Description</th></tr></thead>
     <tbody>
-      <tr><td>browsync detect</td><td>Scan for installed browsers and report available data (bookmarks, history, credentials).</td></tr>
-      <tr><td>browsync import [--browser &lt;name&gt;]</td><td>Import data from detected browsers. Supports <code>--bookmarks-only</code> and <code>--history-only</code> flags.</td></tr>
-      <tr><td>browsync search &lt;query&gt;</td><td>Full-text search across all imported data. <code>--bookmarks</code> / <code>--history</code> to filter. <code>-n</code> to limit results.</td></tr>
-      <tr><td>browsync export --format &lt;fmt&gt;</td><td>Export bookmarks to <code>html</code>, <code>json</code>, or <code>csv</code>. Optional <code>--output &lt;path&gt;</code> and <code>--browser</code> filter.</td></tr>
-      <tr><td>browsync open &lt;url&gt; --browser &lt;name&gt;</td><td>Open a URL in a specific browser via the system launcher.</td></tr>
-      <tr><td>browsync tui</td><td>Launch the interactive terminal interface.</td></tr>
-      <tr><td>browsync status</td><td>Display database statistics and recent sync operations.</td></tr>
-      <tr><td>browsync auth list</td><td>List saved login domains and usernames across all browsers (no passwords stored).</td></tr>
-      <tr><td>browsync auth migrate --from &lt;a&gt; --to &lt;b&gt;</td><td>Report which sites need re-login when switching from browser A to B.</td></tr>
-      <tr><td>browsyncd start | stop | status</td><td>Control the background sync daemon.</td></tr>
+      <tr><td>browsync detect</td><td>Scan for installed browsers and report available data.</td></tr>
+      <tr><td>browsync import [--browser &lt;name&gt;]</td><td>Import bookmarks and history. Flags: <code>--bookmarks-only</code>, <code>--history-only</code>.</td></tr>
+      <tr><td>browsync search &lt;query&gt;</td><td>Full-text search. Flags: <code>--bookmarks</code>, <code>--history</code>, <code>-n &lt;limit&gt;</code>.</td></tr>
+      <tr><td>browsync export --format &lt;fmt&gt;</td><td>Export to <code>html</code> / <code>json</code> / <code>csv</code>. Optional <code>--output</code> and <code>--browser</code>.</td></tr>
+      <tr><td>browsync open &lt;url&gt; [--browser]</td><td>Open a URL in a specific browser.</td></tr>
+      <tr><td>browsync tui</td><td>Launch interactive terminal interface.</td></tr>
+      <tr><td>browsync status</td><td>Database stats and recent sync log.</td></tr>
+      <tr><td>browsync auth list</td><td>List saved login domains (no passwords).</td></tr>
+      <tr><td>browsync auth migrate --from --to</td><td>Sites that need re-login when switching browsers.</td></tr>
+      <tr><td>browsyncd start|stop|status</td><td>Background sync daemon control.</td></tr>
     </tbody>
   </table>
 
-  <h3 style="margin-top: 2.5rem; font-size: 1.1rem;">Example session</h3>
-<pre class="terminal"><span class="ps">$</span> browsync detect
+  <h3>Example session</h3>
+<pre class="term"><span class="ps">$ </span>browsync detect
 <span class="out">  [+] Chrome   active (bookmarks, history, logins)
   [+] Safari   active (bookmarks, history)
   2 browser(s) with importable data</span>
 
-<span class="ps">$</span> browsync import --browser chrome
+<span class="ps">$ </span>browsync import --browser chrome
 <span class="out">  Importing from Chrome...
     Bookmarks: 3,061 imported
-    History:   5,614 imported
-  Database totals: 3,061 bookmarks, 5,614 history entries</span>
+    History:   5,614 imported</span>
 
-<span class="ps">$</span> browsync search <span class="hl">"kubernetes"</span> -n 3
+<span class="ps">$ </span>browsync search <span class="hl">"kubernetes"</span> -n 3
 <span class="out">  Bookmarks (3 results):
-    1. How we run Kubernetes in Kubernetes [C]
-       https://kubernetes.io/blog/...
-    2. RBAC Support in Kubernetes [C]
-       https://kubernetes.io/blog/...
-    3. kubernetes/README.md at master [C]
-       https://github.com/kubernetes/kubernetes/...</span>
+    1. How we run Kubernetes in Kubernetes   [C]
+    2. RBAC Support in Kubernetes             [C]
+    3. kubernetes/README.md at master         [C]</span>
 
-<span class="ps">$</span> browsync export --format html -o bookmarks.html
+<span class="ps">$ </span>browsync export --format html -o bookmarks.html
 <span class="out">  Exported 3,061 bookmarks to bookmarks.html</span></pre>
 
-  <h3 style="margin-top: 2.5rem; font-size: 1.1rem;">Terminal UI</h3>
-  <div class="tui-mock">
-<span class="dim">+--</span> browsync <span class="dim">-----------------------------------------------+</span>
-| <span class="tab-active">[Bookmarks]</span> [History] [Search] [Status]                  |
-<span class="dim">+-----------------------------------------------------------+</span>
-| <span class="tag">[C]</span> GitHub                          <span class="url">github.com</span>          |
-| <span class="tag">[C]</span> Kubernetes Docs                 <span class="url">kubernetes.io</span>       |
-| <span class="tag">[C]</span> Stack Overflow                  <span class="url">stackoverflow.com</span>   |
-| <span class="tag">[F]</span> MDN Web Docs                    <span class="url">developer.mozilla.org</span>|
-| <span class="tag">[S]</span> Apple Developer                 <span class="url">developer.apple.com</span> |
-<span class="dim">+-----------------------------------------------------------+</span>
-| <span class="key">/</span> search  <span class="key">1-4</span> tabs  <span class="key">j/k</span> navigate  <span class="key">o</span> open  <span class="key">q</span> quit     |
-<span class="dim">+-----------------------------------------------------------+</span>
+  <h3>Terminal UI</h3>
+  <div class="tui-frame">
+    <div class="tui-titlebar">
+      <div class="tui-dots"><span class="tui-dot-r"></span><span class="tui-dot-y"></span><span class="tui-dot-g"></span></div>
+      browsync
+    </div>
+    <div class="tui-tabs">
+      <span class="active">Bookmarks</span>
+      <span>History</span>
+      <span>Search</span>
+      <span>Status</span>
+    </div>
+    <div class="tui-body">
+      <table>
+        <tr class="sel"><td class="tag">[C]</td><td class="title">GitHub</td><td class="url">github.com</td></tr>
+        <tr><td class="tag">[C]</td><td class="title">Kubernetes Documentation</td><td class="url">kubernetes.io/docs</td></tr>
+        <tr><td class="tag">[C]</td><td class="title">Stack Overflow</td><td class="url">stackoverflow.com</td></tr>
+        <tr><td class="tag">[F]</td><td class="title">MDN Web Docs</td><td class="url">developer.mozilla.org</td></tr>
+        <tr><td class="tag">[S]</td><td class="title">Apple Developer</td><td class="url">developer.apple.com</td></tr>
+        <tr><td class="tag">[C]</td><td class="title">Rust Programming Language</td><td class="url">rust-lang.org</td></tr>
+        <tr><td class="tag">[C]</td><td class="title">Docs.rs</td><td class="url">docs.rs</td></tr>
+      </table>
+    </div>
+    <div class="tui-statusbar">
+      <span><span class="k">/</span> search</span>
+      <span><span class="k">1-4</span> tabs</span>
+      <span><span class="k">j/k</span> navigate</span>
+      <span><span class="k">o</span> open</span>
+      <span><span class="k">q</span> quit</span>
+    </div>
   </div>
 </section>
 
-<!-- Browser Extension -->
+<!-- Extension -->
 <section>
   <h2>Browser extension</h2>
-  <p class="section-lead">Real-time bookmark and tab sync via WebExtension Native Messaging (Manifest V3).</p>
-<pre class="terminal"><span class="ps">#</span> <span class="out">Build</span>
-<span class="ps">$</span> cd extension && npm install && npm run build
+  <p class="section-lead">Real-time bookmark and tab sync via WebExtension Native Messaging.</p>
+<pre class="term"><span class="ps"># </span><span class="out">Build the extension</span>
+<span class="ps">$ </span>cd extension && npm install && npm run build
 
-<span class="ps">#</span> <span class="out">Chrome: chrome://extensions > Developer Mode > Load unpacked</span>
-<span class="ps">#</span> <span class="out">Firefox: about:debugging > Load Temporary Add-on</span>
+<span class="ps"># </span><span class="out">Chrome: chrome://extensions > Developer Mode > Load unpacked</span>
+<span class="ps"># </span><span class="out">Firefox: about:debugging > Load Temporary Add-on</span>
 
-<span class="ps">#</span> <span class="out">Install native messaging host (macOS)</span>
-<span class="ps">$</span> cp extension/native-messaging-host.json \
+<span class="ps"># </span><span class="out">Install native messaging host (macOS)</span>
+<span class="ps">$ </span>cp extension/native-messaging-host.json \
     ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/com.browsync.daemon.json</pre>
 </section>
 
@@ -383,14 +341,14 @@
 
 <script>
 function showTab(id) {
-  document.querySelectorAll('.install-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.install-panel').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(c => c.classList.remove('active'));
   event.target.classList.add('active');
   document.getElementById('tab-' + id).classList.add('active');
 }
 function copyCmd(btn) {
-  const cmd = btn.parentElement.querySelector('code').textContent;
-  navigator.clipboard.writeText(cmd);
+  const text = btn.parentElement.textContent.replace('Copy','').replace('$ ','').replace('PS> ','').trim();
+  navigator.clipboard.writeText(text);
   btn.textContent = 'Copied';
   setTimeout(() => btn.textContent = 'Copy', 1500);
 }
