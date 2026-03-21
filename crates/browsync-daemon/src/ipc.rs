@@ -1,4 +1,4 @@
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 
@@ -75,13 +75,11 @@ impl IpcServer {
                 let _ = stream.set_nonblocking(false);
                 let mut reader = BufReader::new(&stream);
                 let mut line = String::new();
-                if let Ok(n) = reader.read_line(&mut line) {
-                    if n > 0 {
-                        if let Ok(msg) = serde_json::from_str::<IpcMessage>(&line) {
+                if let Ok(n) = reader.read_line(&mut line)
+                    && n > 0
+                        && let Ok(msg) = serde_json::from_str::<IpcMessage>(&line) {
                             return Some((msg, stream));
                         }
-                    }
-                }
                 None
             }
             Err(_) => None,
@@ -127,6 +125,7 @@ impl IpcClient {
     }
 
     /// Check if daemon is running
+    #[allow(dead_code)]
     pub fn is_running() -> bool {
         socket_path().exists() && Self::send(&IpcMessage::Status).is_ok()
     }

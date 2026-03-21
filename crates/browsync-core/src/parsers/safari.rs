@@ -80,11 +80,10 @@ fn flatten_safari_bookmarks(
         }
         "WebBookmarkTypeList" => {
             let mut path = folder_path.to_vec();
-            if let Some(title) = &node.title {
-                if !title.is_empty() {
+            if let Some(title) = &node.title
+                && !title.is_empty() {
                     path.push(title.clone());
                 }
-            }
             if let Some(children) = &node.children {
                 for child in children {
                     flatten_safari_bookmarks(child, &path, out);

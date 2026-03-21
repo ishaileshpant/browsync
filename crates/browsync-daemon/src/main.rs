@@ -130,11 +130,10 @@ fn do_sync(
     let db = Database::open_default()?;
 
     for detected in browsers {
-        if let Some(f) = filter {
-            if !detected.browser.display_name().eq_ignore_ascii_case(f) {
+        if let Some(f) = filter
+            && !detected.browser.display_name().eq_ignore_ascii_case(f) {
                 continue;
             }
-        }
 
         let parser = parsers::parser_for(detected)?;
 

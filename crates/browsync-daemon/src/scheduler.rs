@@ -52,6 +52,7 @@ impl SyncScheduler {
     }
 
     /// Get time until next periodic sync
+    #[allow(dead_code)]
     pub fn time_until_periodic(&self) -> Duration {
         let elapsed = self.last_periodic.elapsed();
         if elapsed >= self.periodic_interval {

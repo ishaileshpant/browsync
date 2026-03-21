@@ -36,7 +36,7 @@ pub fn list() -> Result<()> {
     all_entries.dedup_by(|a, b| a.domain == b.domain && a.source_browser == b.source_browser);
 
     println!("\nSaved logins by domain:\n");
-    println!("  {:<35} {:<25} {}", "DOMAIN", "USERNAME", "BROWSER");
+    println!("  {:<35} {:<25} BROWSER", "DOMAIN", "USERNAME");
     println!("  {}", "-".repeat(70));
 
     for entry in &all_entries {
@@ -79,11 +79,10 @@ pub fn migrate(from: Browser, to: Browser) -> Result<()> {
     let mut all_entries = Vec::new();
 
     for detected in &browsers {
-        if let Some(login_path) = &detected.login_data_path {
-            if let Ok(entries) = keychain::extract_chrome_auth(login_path, detected.browser) {
+        if let Some(login_path) = &detected.login_data_path
+            && let Ok(entries) = keychain::extract_chrome_auth(login_path, detected.browser) {
                 all_entries.extend(entries);
             }
-        }
     }
 
     let report = keychain::migration_report(&all_entries, from, to);

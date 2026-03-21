@@ -120,8 +120,8 @@ fn profile_path_for(browser: Browser) -> Option<PathBuf> {
                 home.join(".mozilla").join("firefox")
             };
             // Find the default profile (ends with .default-release or .default)
-            if profiles_dir.exists() {
-                if let Ok(entries) = std::fs::read_dir(&profiles_dir) {
+            if profiles_dir.exists()
+                && let Ok(entries) = std::fs::read_dir(&profiles_dir) {
                     for entry in entries.flatten() {
                         let name = entry.file_name().to_string_lossy().to_string();
                         if name.ends_with(".default-release") || name.ends_with(".default") {
@@ -129,7 +129,6 @@ fn profile_path_for(browser: Browser) -> Option<PathBuf> {
                         }
                     }
                 }
-            }
             None
         }
         Browser::Safari => {

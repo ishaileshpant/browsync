@@ -29,7 +29,7 @@ impl FirefoxParser {
 
         let temp_path = std::env::temp_dir().join("browsync_firefox_places.sqlite");
         std::fs::copy(path, &temp_path)
-            .with_context(|| format!("Copying Firefox places.sqlite (browser may be locked)"))?;
+            .with_context(|| "Copying Firefox places.sqlite (browser may be locked)".to_string())?;
 
         let conn = rusqlite::Connection::open_with_flags(
             &temp_path,

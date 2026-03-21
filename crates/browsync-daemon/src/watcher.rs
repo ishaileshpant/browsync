@@ -17,6 +17,7 @@ pub struct BrowserChangeEvent {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum ChangeType {
     BookmarksModified,
     HistoryModified,
@@ -51,8 +52,8 @@ impl BrowserWatcher {
         let paths_clone = browser_paths.clone();
 
         let mut watcher = notify::recommended_watcher(move |res: Result<Event, notify::Error>| {
-            if let Ok(event) = res {
-                if matches!(
+            if let Ok(event) = res
+                && matches!(
                     event.kind,
                     EventKind::Modify(_) | EventKind::Create(_)
                 ) {
@@ -62,7 +63,6 @@ impl BrowserWatcher {
                         }
                     }
                 }
-            }
         })?;
 
         // Watch each browser's profile directory
@@ -86,6 +86,7 @@ impl BrowserWatcher {
     }
 
     /// Receive the next change event (blocking with timeout)
+    #[allow(dead_code)]
     pub fn recv_timeout(&self, timeout: Duration) -> Option<BrowserChangeEvent> {
         self.rx.recv_timeout(timeout).ok()
     }
@@ -100,7 +101,7 @@ impl BrowserWatcher {
     }
 }
 
-fn classify_event(path: &PathBuf, browser_paths: &[(Browser, PathBuf)]) -> Option<BrowserChangeEvent> {
+fn classify_event(path: &std::path::Path, browser_paths: &[(Browser, PathBuf)]) -> Option<BrowserChangeEvent> {
     let filename = path.file_name()?.to_str()?;
 
     // Find which browser this path belongs to
@@ -119,7 +120,7 @@ fn classify_event(path: &PathBuf, browser_paths: &[(Browser, PathBuf)]) -> Optio
     Some(BrowserChangeEvent {
         browser,
         change_type,
-        path: path.clone(),
+        path: path.to_path_buf(),
     })
 }
 

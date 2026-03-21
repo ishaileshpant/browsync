@@ -104,7 +104,7 @@ pub fn onepassword_domains() -> Result<Vec<String>> {
                 .and_then(|urls| urls.first())
                 .and_then(|url| url.get("href"))
                 .and_then(|href| href.as_str())
-                .map(|href| extract_domain(href))
+                .map(extract_domain)
         })
         .collect();
 
