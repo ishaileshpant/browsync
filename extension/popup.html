@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      width: 300px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      padding: 16px;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      margin: 0;
+    }
+    h2 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      color: #00d4ff;
+    }
+    .stat {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid #2a2a3e;
+    }
+    .stat:last-child { border-bottom: none; }
+    .label { color: #888; }
+    .value { color: #fff; font-weight: 600; }
+    .status {
+      margin-top: 12px;
+      padding: 8px;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 12px;
+    }
+    .connected { background: #1a3a2a; color: #4ade80; }
+    .disconnected { background: #3a1a1a; color: #f87171; }
+    button {
+      width: 100%;
+      margin-top: 12px;
+      padding: 8px;
+      background: #00d4ff;
+      color: #1a1a2e;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { background: #00b4df; }
+  </style>
+</head>
+<body>
+  <h2>browsync</h2>
+  <div class="stat">
+    <span class="label">Bookmarks synced</span>
+    <span class="value" id="bookmarkCount">-</span>
+  </div>
+  <div class="stat">
+    <span class="label">Last sync</span>
+    <span class="value" id="lastSync">-</span>
+  </div>
+  <div class="stat">
+    <span class="label">Pending events</span>
+    <span class="value" id="pendingCount">-</span>
+  </div>
+  <div id="status" class="status disconnected">Checking daemon...</div>
+  <button id="syncBtn">Sync Now</button>
+
+  <script src="dist/popup.js"></script>
+</body>
+</html>

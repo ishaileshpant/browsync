@@ -1,0 +1,17 @@
+[package]
+name = "browsync-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "browsync"
+path = "src/main.rs"
+
+[dependencies]
+browsync-core = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+ratatui = { workspace = true }
+crossterm = { workspace = true }

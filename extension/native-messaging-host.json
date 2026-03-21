@@ -1,0 +1,9 @@
+{
+  "name": "com.browsync.daemon",
+  "description": "browsync native messaging host",
+  "path": "/usr/local/bin/browsyncd",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://EXTENSION_ID_HERE/"
+  ]
+}

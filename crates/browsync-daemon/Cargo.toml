@@ -1,0 +1,18 @@
+[package]
+name = "browsync-daemon"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "browsyncd"
+path = "src/main.rs"
+
+[dependencies]
+browsync-core = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+dirs = { workspace = true }
+tokio = { version = "1", features = ["full"] }
+notify = "7"

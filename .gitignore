@@ -1,0 +1,7 @@
+/target
+*.swp
+*.swo
+.DS_Store
+node_modules/
+extension/dist/
+extension/node_modules/
