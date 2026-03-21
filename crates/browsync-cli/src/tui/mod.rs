@@ -4,7 +4,7 @@ use anyhow::Result;
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::prelude::*;
 
@@ -66,7 +66,7 @@ fn ui(frame: &mut Frame, app: &App) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(3), // Tab bar
-            Constraint::Min(10),  // Content
+            Constraint::Min(10),   // Content
             Constraint::Length(3), // Search / status bar
         ])
         .split(frame.area());
@@ -212,7 +212,10 @@ fn render_search(frame: &mut Frame, app: &App, area: Rect) {
                 Style::default().fg(Color::Yellow),
             ),
             Span::raw(&bm.title),
-            Span::styled(format!("  {}", bm.url), Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                format!("  {}", bm.url),
+                Style::default().fg(Color::DarkGray),
+            ),
         ]);
         items.push(ratatui::widgets::ListItem::new(line));
     }

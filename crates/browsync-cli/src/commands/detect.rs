@@ -16,10 +16,7 @@ pub fn run() -> Result<()> {
     }
 
     let with_data: Vec<_> = browsers.iter().filter(|b| b.has_data).collect();
-    println!(
-        "\n{} browser(s) with importable data",
-        with_data.len()
-    );
+    println!("\n{} browser(s) with importable data", with_data.len());
 
     if with_data.is_empty() {
         println!("\nNo browser data found. Make sure browsers have been used at least once.");

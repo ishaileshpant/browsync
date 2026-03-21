@@ -128,17 +128,15 @@ fn start_daemon() -> Result<()> {
     Ok(())
 }
 
-fn do_sync(
-    browsers: &[detect::DetectedBrowser],
-    filter: Option<&str>,
-) -> Result<()> {
+fn do_sync(browsers: &[detect::DetectedBrowser], filter: Option<&str>) -> Result<()> {
     let db = Database::open_default()?;
 
     for detected in browsers {
         if let Some(f) = filter
-            && !detected.browser.display_name().eq_ignore_ascii_case(f) {
-                continue;
-            }
+            && !detected.browser.display_name().eq_ignore_ascii_case(f)
+        {
+            continue;
+        }
 
         let parser = parsers::parser_for(detected)?;
 
@@ -177,9 +175,7 @@ fn stop_daemon() -> Result<()> {
             // Try to kill by PID
             let pid_path = Database::data_dir()?.join("daemon.pid");
             if let Ok(pid) = std::fs::read_to_string(&pid_path) {
-                let _ = std::process::Command::new("kill")
-                    .arg(pid.trim())
-                    .status();
+                let _ = std::process::Command::new("kill").arg(pid.trim()).status();
                 let _ = std::fs::remove_file(&pid_path);
                 println!("Killed daemon process");
             }

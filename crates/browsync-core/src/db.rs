@@ -232,9 +232,7 @@ impl Database {
         )?;
 
         let results = stmt
-            .query_map(params![fts_query], |row| {
-                Ok(row_to_bookmark(row))
-            })?
+            .query_map(params![fts_query], |row| Ok(row_to_bookmark(row)))?
             .filter_map(|r| r.ok())
             .collect::<Vec<_>>();
 
@@ -260,9 +258,7 @@ impl Database {
         )?;
 
         let results = stmt
-            .query_map(params![fts_query], |row| {
-                Ok(row_to_history(row))
-            })?
+            .query_map(params![fts_query], |row| Ok(row_to_history(row)))?
             .filter_map(|r| r.ok())
             .collect::<Vec<_>>();
 
@@ -389,9 +385,9 @@ impl Database {
 
     /// Count bookmarks and history entries
     pub fn counts(&self) -> Result<(usize, usize)> {
-        let bookmarks: usize = self
-            .conn
-            .query_row("SELECT COUNT(*) FROM bookmarks", [], |row| row.get(0))?;
+        let bookmarks: usize =
+            self.conn
+                .query_row("SELECT COUNT(*) FROM bookmarks", [], |row| row.get(0))?;
         let history: usize = self
             .conn
             .query_row("SELECT COUNT(*) FROM history", [], |row| row.get(0))?;

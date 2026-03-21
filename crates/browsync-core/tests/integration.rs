@@ -1,6 +1,6 @@
 use browsync_core::db::Database;
 use browsync_core::models::{Bookmark, Browser, HistoryEntry};
-use browsync_core::sync::{dedup_bookmarks, dedup_history, MergeStrategy};
+use browsync_core::sync::{MergeStrategy, dedup_bookmarks, dedup_history};
 use chrono::Utc;
 use uuid::Uuid;
 
@@ -113,7 +113,10 @@ fn test_dedup_across_browsers() {
 
     let deduped_h = dedup_history(&history);
     assert_eq!(deduped_h.len(), 2);
-    let gh = deduped_h.iter().find(|h| h.url == "https://github.com").unwrap();
+    let gh = deduped_h
+        .iter()
+        .find(|h| h.url == "https://github.com")
+        .unwrap();
     assert_eq!(gh.visit_count, 80); // Summed
 }
 
@@ -150,7 +153,7 @@ fn test_clear_browser_data() {
 
     let (bk, h) = db.counts().unwrap();
     assert_eq!(bk, 1); // Only Firefox bookmark remains
-    assert_eq!(h, 1);  // Only Firefox history remains
+    assert_eq!(h, 1); // Only Firefox history remains
 }
 
 #[test]
@@ -168,11 +171,17 @@ fn test_large_bookmark_insert() {
     let db = Database::open_memory().unwrap();
 
     let bookmarks: Vec<Bookmark> = (0..5000)
-        .map(|i| make_bookmark(
-            &format!("https://example.com/page/{i}"),
-            &format!("Page {i}"),
-            if i % 2 == 0 { Browser::Chrome } else { Browser::Firefox },
-        ))
+        .map(|i| {
+            make_bookmark(
+                &format!("https://example.com/page/{i}"),
+                &format!("Page {i}"),
+                if i % 2 == 0 {
+                    Browser::Chrome
+                } else {
+                    Browser::Firefox
+                },
+            )
+        })
         .collect();
 
     let count = db.insert_bookmarks(&bookmarks).unwrap();
@@ -191,7 +200,11 @@ fn test_fts_prefix_search() {
     let db = Database::open_memory().unwrap();
 
     let bms = vec![
-        make_bookmark("https://kubernetes.io", "Kubernetes Documentation", Browser::Chrome),
+        make_bookmark(
+            "https://kubernetes.io",
+            "Kubernetes Documentation",
+            Browser::Chrome,
+        ),
         make_bookmark("https://k8s.io", "K8s Quick Start", Browser::Chrome),
         make_bookmark("https://python.org", "Python Language", Browser::Chrome),
     ];
@@ -285,7 +298,7 @@ fn test_csv_export_with_special_chars() {
 
 #[test]
 fn test_auth_migration_report() {
-    use browsync_core::keychain::{migration_report, MigrationStatus};
+    use browsync_core::keychain::{MigrationStatus, migration_report};
     use browsync_core::models::AuthEntry;
 
     let entries = vec![

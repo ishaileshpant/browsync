@@ -83,21 +83,33 @@ fn profile_path_for(browser: Browser) -> Option<PathBuf> {
     match browser {
         Browser::Chrome => {
             #[cfg(target_os = "windows")]
-            { chromium_profile_path("Google\\Chrome") }
+            {
+                chromium_profile_path("Google\\Chrome")
+            }
             #[cfg(not(target_os = "windows"))]
-            { chromium_profile_path("Google/Chrome") }
+            {
+                chromium_profile_path("Google/Chrome")
+            }
         }
         Browser::Edge => {
             #[cfg(target_os = "windows")]
-            { chromium_profile_path("Microsoft\\Edge") }
+            {
+                chromium_profile_path("Microsoft\\Edge")
+            }
             #[cfg(not(target_os = "windows"))]
-            { chromium_profile_path("Microsoft Edge") }
+            {
+                chromium_profile_path("Microsoft Edge")
+            }
         }
         Browser::Brave => {
             #[cfg(target_os = "windows")]
-            { chromium_profile_path("BraveSoftware\\Brave-Browser") }
+            {
+                chromium_profile_path("BraveSoftware\\Brave-Browser")
+            }
             #[cfg(not(target_os = "windows"))]
-            { chromium_profile_path("BraveSoftware/Brave-Browser") }
+            {
+                chromium_profile_path("BraveSoftware/Brave-Browser")
+            }
         }
         Browser::Arc => chromium_profile_path("Arc/User Data"),
         Browser::Firefox => {
@@ -121,14 +133,15 @@ fn profile_path_for(browser: Browser) -> Option<PathBuf> {
             };
             // Find the default profile (ends with .default-release or .default)
             if profiles_dir.exists()
-                && let Ok(entries) = std::fs::read_dir(&profiles_dir) {
-                    for entry in entries.flatten() {
-                        let name = entry.file_name().to_string_lossy().to_string();
-                        if name.ends_with(".default-release") || name.ends_with(".default") {
-                            return Some(entry.path());
-                        }
+                && let Ok(entries) = std::fs::read_dir(&profiles_dir)
+            {
+                for entry in entries.flatten() {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    if name.ends_with(".default-release") || name.ends_with(".default") {
+                        return Some(entry.path());
                     }
                 }
+            }
             None
         }
         Browser::Safari => {
@@ -163,7 +176,9 @@ fn is_app_installed(browser: Browser) -> bool {
     #[cfg(target_os = "windows")]
     {
         // On Windows, check if the profile directory exists (browser was used)
-        profile_path_for(browser).map(|p| p.exists()).unwrap_or(false)
+        profile_path_for(browser)
+            .map(|p| p.exists())
+            .unwrap_or(false)
     }
     #[cfg(target_os = "linux")]
     {

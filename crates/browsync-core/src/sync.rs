@@ -235,9 +235,14 @@ mod tests {
             make_history("https://example.com", 3, Browser::Chrome),
         ];
 
-        let stats =
-            import_with_dedup(&db, bookmarks, history, Browser::Chrome, MergeStrategy::LastWriteWins)
-                .unwrap();
+        let stats = import_with_dedup(
+            &db,
+            bookmarks,
+            history,
+            Browser::Chrome,
+            MergeStrategy::LastWriteWins,
+        )
+        .unwrap();
 
         assert_eq!(stats.duplicates_merged, 2); // 1 bookmark dup + 1 history dup
         let (bk, hist) = db.counts().unwrap();

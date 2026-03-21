@@ -15,9 +15,7 @@ pub enum IpcMessage {
 
     /// Trigger an immediate sync
     #[serde(rename = "sync")]
-    Sync {
-        browser: Option<String>,
-    },
+    Sync { browser: Option<String> },
 
     /// Request the daemon to stop
     #[serde(rename = "stop")]
@@ -34,16 +32,12 @@ pub enum IpcMessage {
 
     /// Ack response
     #[serde(rename = "ack")]
-    Ack {
-        message: String,
-    },
+    Ack { message: String },
 }
 
 /// Path to the Unix domain socket
 pub fn socket_path() -> PathBuf {
-    let dir = dirs::home_dir()
-        .expect("home dir")
-        .join(".browsync");
+    let dir = dirs::home_dir().expect("home dir").join(".browsync");
     dir.join("browsync.sock")
 }
 
@@ -77,9 +71,10 @@ impl IpcServer {
                 let mut line = String::new();
                 if let Ok(n) = reader.read_line(&mut line)
                     && n > 0
-                        && let Ok(msg) = serde_json::from_str::<IpcMessage>(&line) {
-                            return Some((msg, stream));
-                        }
+                    && let Ok(msg) = serde_json::from_str::<IpcMessage>(&line)
+                {
+                    return Some((msg, stream));
+                }
                 None
             }
             Err(_) => None,

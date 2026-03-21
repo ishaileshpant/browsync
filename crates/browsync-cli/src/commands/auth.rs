@@ -12,11 +12,7 @@ pub fn list() -> Result<()> {
         if let Some(login_path) = &detected.login_data_path {
             match keychain::extract_chrome_auth(login_path, detected.browser) {
                 Ok(entries) => {
-                    println!(
-                        "{}: {} saved logins",
-                        detected.browser,
-                        entries.len()
-                    );
+                    println!("{}: {} saved logins", detected.browser, entries.len());
                     all_entries.extend(entries);
                 }
                 Err(e) => {
@@ -80,9 +76,10 @@ pub fn migrate(from: Browser, to: Browser) -> Result<()> {
 
     for detected in &browsers {
         if let Some(login_path) = &detected.login_data_path
-            && let Ok(entries) = keychain::extract_chrome_auth(login_path, detected.browser) {
-                all_entries.extend(entries);
-            }
+            && let Ok(entries) = keychain::extract_chrome_auth(login_path, detected.browser)
+        {
+            all_entries.extend(entries);
+        }
     }
 
     let report = keychain::migration_report(&all_entries, from, to);

@@ -1,7 +1,11 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Parser)]
-#[command(name = "browsync", version, about = "Cross-browser bookmark, history & session consolidation")]
+#[command(
+    name = "browsync",
+    version,
+    about = "Cross-browser bookmark, history & session consolidation"
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,

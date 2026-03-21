@@ -25,13 +25,18 @@ pub fn parser_for(detected: &DetectedBrowser) -> Result<Box<dyn BrowserParser>> 
 }
 
 /// Import all data from a detected browser
-pub fn import_browser(detected: &DetectedBrowser) -> Result<(Vec<Bookmark>, Vec<HistoryEntry>, ImportStats)> {
+pub fn import_browser(
+    detected: &DetectedBrowser,
+) -> Result<(Vec<Bookmark>, Vec<HistoryEntry>, ImportStats)> {
     let parser = parser_for(detected)?;
 
     let bookmarks = match parser.parse_bookmarks() {
         Ok(b) => b,
         Err(e) => {
-            eprintln!("Warning: Could not parse {} bookmarks: {e}", detected.browser);
+            eprintln!(
+                "Warning: Could not parse {} bookmarks: {e}",
+                detected.browser
+            );
             Vec::new()
         }
     };

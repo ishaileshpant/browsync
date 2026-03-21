@@ -27,7 +27,13 @@ pub enum ChangeType {
 
 impl std::fmt::Display for BrowserChangeEvent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}] {:?} at {}", self.browser, self.change_type, self.path.display())
+        write!(
+            f,
+            "[{}] {:?} at {}",
+            self.browser,
+            self.change_type,
+            self.path.display()
+        )
     }
 }
 
@@ -53,16 +59,14 @@ impl BrowserWatcher {
 
         let mut watcher = notify::recommended_watcher(move |res: Result<Event, notify::Error>| {
             if let Ok(event) = res
-                && matches!(
-                    event.kind,
-                    EventKind::Modify(_) | EventKind::Create(_)
-                ) {
-                    for path in &event.paths {
-                        if let Some(change_event) = classify_event(path, &paths_clone) {
-                            let _ = tx_clone.send(change_event);
-                        }
+                && matches!(event.kind, EventKind::Modify(_) | EventKind::Create(_))
+            {
+                for path in &event.paths {
+                    if let Some(change_event) = classify_event(path, &paths_clone) {
+                        let _ = tx_clone.send(change_event);
                     }
                 }
+            }
         })?;
 
         // Watch each browser's profile directory
@@ -101,7 +105,10 @@ impl BrowserWatcher {
     }
 }
 
-fn classify_event(path: &std::path::Path, browser_paths: &[(Browser, PathBuf)]) -> Option<BrowserChangeEvent> {
+fn classify_event(
+    path: &std::path::Path,
+    browser_paths: &[(Browser, PathBuf)],
+) -> Option<BrowserChangeEvent> {
     let filename = path.file_name()?.to_str()?;
 
     // Find which browser this path belongs to
@@ -136,7 +143,9 @@ mod tests {
         )];
 
         let event = classify_event(
-            &PathBuf::from("/Users/test/Library/Application Support/Google/Chrome/Default/Bookmarks"),
+            &PathBuf::from(
+                "/Users/test/Library/Application Support/Google/Chrome/Default/Bookmarks",
+            ),
             &paths,
         );
 
@@ -148,10 +157,7 @@ mod tests {
 
     #[test]
     fn test_classify_ignores_unrelated() {
-        let paths = vec![(
-            Browser::Chrome,
-            PathBuf::from("/Users/test/Chrome/Default"),
-        )];
+        let paths = vec![(Browser::Chrome, PathBuf::from("/Users/test/Chrome/Default"))];
 
         let event = classify_event(
             &PathBuf::from("/Users/test/Chrome/Default/GPUCache"),
