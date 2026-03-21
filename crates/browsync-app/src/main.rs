@@ -22,6 +22,8 @@ fn main() {
             commands::view_password,
             commands::get_graph_data,
             commands::summarize_url,
+            commands::summarize_batch,
+            commands::get_summaries,
             commands::save_settings,
             commands::load_settings,
         ])

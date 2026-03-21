@@ -149,7 +149,7 @@
   // ══════════════════════════════════════════
   // STATE
   // ══════════════════════════════════════════
-  var VIEWS = ['bookmarks','history','search','graphs','import','auth','dashboard'];
+  var VIEWS = ['bookmarks','history','search','graphs','summaries','import','auth','dashboard'];
   var settings = { theme: 'midnight' };
   var state = { view: 'bookmarks', filter: null, imported: {}, searchQuery: '' };
   var chartInstances = [];
@@ -176,7 +176,7 @@
   // NAV + RENDER
   // ══════════════════════════════════════════
   function buildNav() {
-    var labels = {bookmarks:'Bookmarks',history:'History',search:'Search',graphs:'Graphs',import:'Import',auth:'Auth',dashboard:'Dashboard'};
+    var labels = {bookmarks:'Bookmarks',history:'History',search:'Search',graphs:'Graphs',summaries:'Summaries',import:'Import',auth:'Auth',dashboard:'Dashboard'};
     var h=''; VIEWS.forEach(function(v) { h+='<button class="nav-item'+(v===state.view?' active':'')+'" data-v="'+v+'">'+labels[v]+'</button>'; });
     document.getElementById('nav').innerHTML = h;
   }
@@ -199,6 +199,7 @@
         case 'history': await vHistory(el); break;
         case 'search': await vSearch(el); break;
         case 'graphs': await vGraphs(el); break;
+        case 'summaries': await vSummaries(el); break;
         case 'import': await vImport(el); break;
         case 'auth': await vAuth(el); break;
         case 'dashboard': await vDashboard(el); break;
@@ -226,7 +227,7 @@
     bms.slice(0,500).forEach(function(b){
       var t=(b.source_browser||'?').charAt(0).toUpperCase();
       h+='<tr><td class="tag">['+t+']</td><td class="tcell" title="'+esc(b.title)+'">'+esc(b.title)+'</td><td class="url" title="'+esc(b.url)+'">'+esc(shortUrl(b.url))+'</td><td class="folder">'+esc((b.folder_path||[]).join('/'))+'</td>';
-      h+='<td><button class="act-btn" data-url="'+esc(b.url)+'">Open</button><button class="act-btn sum-btn" data-sum="'+esc(b.url)+'" title="Summarize">AI</button></td></tr>';
+      h+='<td><button class="act-btn" data-url="'+esc(b.url)+'">Open</button></td></tr>';
     });
     h+='</tbody></table>';
     if(bms.length>500) h+='<div style="padding:.4rem;font-size:.7rem;color:var(--text-m)">500 of '+bms.length+'</div>';
@@ -336,6 +337,75 @@
   }
 
   // ══════════════════════════════════════════
+  // SUMMARIES VIEW (dedicated, background batch)
+  // ══════════════════════════════════════════
+  var summaryRunning = false;
+
+  async function vSummaries(el) {
+    var summaries = await invoke('get_summaries');
+    var stats = await invoke('get_stats');
+    var summarized = Object.keys(summaries).length;
+
+    var h = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">';
+    h += '<div><h4 style="font-size:.95rem;margin:0">AI Summaries</h4>';
+    h += '<div style="font-size:.72rem;color:var(--text-m);margin-top:.15rem">' + summarized + ' of ' + stats.bookmark_count + ' bookmarks summarized</div></div>';
+    h += '<div style="display:flex;gap:.4rem">';
+    h += '<button class="btn btn-p" data-action="run-batch" id="batch-btn"' + (summaryRunning ? ' disabled' : '') + '>' + (summaryRunning ? 'Running...' : 'Summarize Next 10') + '</button>';
+    h += '<button class="btn" data-action="run-batch-50"' + (summaryRunning ? ' disabled' : '') + '>Batch 50</button>';
+    h += '</div></div>';
+
+    // Progress bar
+    if (stats.bookmark_count > 0) {
+      var pct = Math.round((summarized / stats.bookmark_count) * 100);
+      h += '<div style="background:var(--bg-el);border-radius:4px;height:6px;margin-bottom:1rem;overflow:hidden">';
+      h += '<div style="background:var(--accent);height:100%;width:' + pct + '%;transition:width .3s"></div></div>';
+    }
+
+    h += '<div id="batch-status" style="font-size:.78rem;color:var(--text-m);margin-bottom:.75rem"></div>';
+
+    if (summarized === 0) {
+      h += '<div class="empty">No summaries yet. Click "Summarize Next 10" to start background processing.<br><br>';
+      h += 'Each bookmark URL is fetched, text extracted, and summarized via Ollama (or extractive fallback).</div>';
+    } else {
+      h += '<table><thead><tr><th style="width:35%">Bookmark</th><th>Summary</th></tr></thead><tbody>';
+      var urls = Object.keys(summaries);
+      urls.forEach(function(url) {
+        var summary = summaries[url];
+        // Truncate summary for display
+        var displaySum = summary.length > 200 ? summary.substring(0, 200) + '...' : summary;
+        h += '<tr><td class="url" style="max-width:250px;font-size:.75rem" title="' + esc(url) + '">' + esc(shortUrl(url)) + '</td>';
+        h += '<td style="font-size:.8rem;color:var(--text-s);line-height:1.4">' + esc(displaySum) + '</td></tr>';
+      });
+      h += '</tbody></table>';
+    }
+
+    el.innerHTML = h;
+  }
+
+  async function runBatch(count) {
+    if (summaryRunning) return;
+    summaryRunning = true;
+    var statusEl = document.getElementById('batch-status');
+    var batchBtn = document.getElementById('batch-btn');
+    if (batchBtn) { batchBtn.textContent = 'Running...'; batchBtn.disabled = true; }
+    if (statusEl) statusEl.textContent = 'Processing ' + count + ' bookmarks...';
+
+    try {
+      var result = await invoke('summarize_batch', { count: count });
+      if (statusEl) statusEl.textContent = 'Done: ' + result.processed + ' summarized, ' + result.failed + ' failed. Total: ' + result.totalSummaries + ' summaries cached.';
+      toast(result.processed + ' bookmarks summarized');
+      summaryRunning = false;
+      // Refresh the view
+      if (state.view === 'summaries') vSummaries(document.getElementById('out'));
+    } catch (e) {
+      if (statusEl) statusEl.textContent = 'Error: ' + String(e);
+      toast(String(e), true);
+      summaryRunning = false;
+      if (batchBtn) { batchBtn.textContent = 'Summarize Next 10'; batchBtn.disabled = false; }
+    }
+  }
+
+  // ══════════════════════════════════════════
   // IMPORT VIEW
   // ══════════════════════════════════════════
   async function vImport(el) {
@@ -397,24 +467,9 @@
     catch(e){toast(String(e),1);}
   }
 
-  async function doSummarize(url, btn) {
-    btn.textContent = '...';
-    btn.disabled = true;
-    try {
-      var r = await invoke('summarize_url', { url: url });
-      var row = btn.closest('tr');
-      var existing = row.nextElementSibling;
-      if (existing && existing.classList.contains('sum-row')) existing.remove();
-      var tr = document.createElement('tr');
-      tr.className = 'sum-row';
-      tr.innerHTML = '<td colspan="5"><div class="summary-box">' + esc(r.summary) + '<div class="engine">via ' + r.engine + (r.note ? ' — ' + esc(r.note) : '') + '</div></div></td>';
-      row.after(tr);
-      btn.textContent = 'AI';
-      btn.disabled = false;
-    } catch (e) {
-      toast(String(e), true);
-      btn.textContent = 'AI';
-      btn.disabled = false;
+  async function _unused_doSummarize(url, btn) {
+    // Removed: summarization moved to dedicated Summaries view
+    void(url); void(btn);
     }
   }
 
@@ -462,11 +517,13 @@
   document.getElementById('out').addEventListener('click', function(e) {
     var t = e.target;
     if (t.dataset.url) { invoke('open_url',{url:t.dataset.url}); return; }
-    if (t.dataset.sum) { doSummarize(t.dataset.sum, t); return; }
+    // summarization moved to Summaries view
     if (t.dataset.filter !== undefined) { state.filter = t.dataset.filter || null; render(); return; }
     if (t.dataset.action === 'import-one' && !t.disabled) { doImportOne(t.dataset.browser, t); return; }
     if (t.dataset.action === 'import-all') { doImportAll(); return; }
     if (t.dataset.action === 'goto-import') { switchView('import'); return; }
+    if (t.dataset.action === 'run-batch') { runBatch(10); return; }
+    if (t.dataset.action === 'run-batch-50') { runBatch(50); return; }
     if (t.dataset.pwDomain) { doViewPassword(t.dataset.pwDomain); return; }
   });
 

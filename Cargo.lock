@@ -239,6 +239,7 @@ dependencies = [
  "browsync-core",
  "chrono",
  "dirs",
+ "rusqlite",
  "serde",
  "serde_json",
  "tauri",

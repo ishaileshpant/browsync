@@ -125,6 +125,14 @@ impl Database {
                 items_synced INTEGER NOT NULL DEFAULT 0,
                 synced_at TEXT NOT NULL
             );
+
+            -- Bookmark summaries (AI-generated, cached)
+            CREATE TABLE IF NOT EXISTS summaries (
+                url TEXT PRIMARY KEY,
+                summary TEXT NOT NULL,
+                engine TEXT NOT NULL DEFAULT 'extractive',
+                created_at TEXT NOT NULL
+            );
             ",
         )?;
         Ok(())
@@ -407,6 +415,63 @@ impl Database {
             params![name],
         )?;
         Ok(())
+    }
+
+    /// Save a URL summary
+    pub fn save_summary(&self, url: &str, summary: &str, engine: &str) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO summaries (url, summary, engine, created_at)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(url) DO UPDATE SET
+                summary = excluded.summary,
+                engine = excluded.engine,
+                created_at = excluded.created_at",
+            params![url, summary, engine, chrono::Utc::now().to_rfc3339()],
+        )?;
+        Ok(())
+    }
+
+    /// Get summary for a URL
+    pub fn get_summary(&self, url: &str) -> Result<Option<(String, String)>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT summary, engine FROM summaries WHERE url = ?1")?;
+        let result = stmt
+            .query_row(params![url], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .ok();
+        Ok(result)
+    }
+
+    /// Get all summaries
+    pub fn get_all_summaries(&self) -> Result<std::collections::HashMap<String, String>> {
+        let mut stmt = self.conn.prepare("SELECT url, summary FROM summaries")?;
+        let map = stmt
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+        Ok(map)
+    }
+
+    /// Get URLs that have no summary yet
+    pub fn get_unsummarized_urls(&self, limit: usize) -> Result<Vec<(String, String)>> {
+        let mut stmt = self.conn.prepare(&format!(
+            "SELECT b.url, b.title FROM bookmarks b
+             LEFT JOIN summaries s ON b.url = s.url
+             WHERE s.url IS NULL
+             AND b.url LIKE 'http%'
+             LIMIT {limit}"
+        ))?;
+        let results = stmt
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+        Ok(results)
     }
 }
 

@@ -282,47 +282,83 @@ pub fn delete_browser_data(browser_name: String) -> Result<String, String> {
     Ok(format!("Cleared all {} data", browser))
 }
 
-// ── Password viewing with biometric auth ──
+// ── Password viewing via Chrome Safe Storage + Keychain ──
 
 #[tauri::command]
 pub fn view_password(domain: String) -> Result<serde_json::Value, String> {
-    // Use macOS security CLI with user prompt (triggers Touch ID / password dialog)
-    let output = std::process::Command::new("security")
-        .args([
-            "find-internet-password",
-            "-s",
-            &domain,
-            "-w", // output password only
-        ])
+    // Step 1: Get Chrome Safe Storage encryption key from Keychain
+    let key_output = std::process::Command::new("security")
+        .args(["find-generic-password", "-s", "Chrome Safe Storage", "-w"])
         .output()
-        .map_err(|e| format!("Failed to access Keychain: {e}"))?;
+        .map_err(|e| format!("Keychain access failed: {e}"))?;
 
-    if output.status.success() {
-        let password = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        Ok(serde_json::json!({
-            "domain": domain,
-            "password": password,
-            "source": "keychain"
-        }))
-    } else {
-        // Try generic password
-        let output2 = std::process::Command::new("security")
-            .args(["find-generic-password", "-s", &domain, "-w"])
+    if !key_output.status.success() {
+        // Fallback: try macOS Keychain internet passwords (Safari, system)
+        let output = std::process::Command::new("security")
+            .args(["find-internet-password", "-s", &domain, "-w"])
             .output()
             .map_err(|e| format!("Keychain error: {e}"))?;
 
-        if output2.status.success() {
-            let password = String::from_utf8_lossy(&output2.stdout).trim().to_string();
-            Ok(serde_json::json!({
-                "domain": domain,
-                "password": password,
-                "source": "keychain"
-            }))
-        } else {
-            Err(format!(
-                "No Keychain entry found for {domain}. Password may be stored in browser's encrypted vault."
-            ))
+        if output.status.success() {
+            let pw = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            return Ok(
+                serde_json::json!({"domain": domain, "password": pw, "source": "macOS Keychain"}),
+            );
         }
+        return Err(format!(
+            "Password for {domain} is encrypted in Chrome's vault. \
+            Chrome uses its own encryption — export via chrome://settings/passwords or use a password manager."
+        ));
+    }
+
+    // Step 2: Query Chrome's Login Data for the domain
+    let chrome_login = dirs::home_dir()
+        .ok_or("No home dir")?
+        .join("Library/Application Support/Google/Chrome/Default/Login Data");
+
+    if !chrome_login.exists() {
+        return Err("Chrome Login Data not found.".to_string());
+    }
+
+    let temp = std::env::temp_dir().join("browsync_login_pw");
+    std::fs::copy(&chrome_login, &temp).map_err(|e| e.to_string())?;
+
+    let conn =
+        rusqlite::Connection::open_with_flags(&temp, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .map_err(|e| e.to_string())?;
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT origin_url, username_value, LENGTH(password_value) as pw_len
+         FROM logins WHERE origin_url LIKE ?1 LIMIT 1",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let result = stmt.query_row(rusqlite::params![format!("%{domain}%")], |row| {
+        let origin: String = row.get(0)?;
+        let username: String = row.get(1)?;
+        let pw_len: i32 = row.get(2)?;
+        Ok((origin, username, pw_len))
+    });
+
+    let _ = std::fs::remove_file(&temp);
+
+    match result {
+        Ok((origin, username, pw_len)) => {
+            if pw_len > 0 {
+                Ok(serde_json::json!({
+                    "domain": domain,
+                    "password": format!("[encrypted - {} bytes]", pw_len),
+                    "username": username,
+                    "origin": origin,
+                    "source": "Chrome (AES-128-CBC encrypted)",
+                    "note": "Chrome passwords are encrypted with a key in macOS Keychain. Use chrome://settings/passwords to view, or export to a password manager."
+                }))
+            } else {
+                Err(format!("No password stored for {domain}"))
+            }
+        }
+        Err(_) => Err(format!("No saved login found for {domain} in Chrome.")),
     }
 }
 
@@ -436,48 +472,88 @@ pub fn get_graph_data() -> Result<serde_json::Value, String> {
     }))
 }
 
-// ── Bookmark summarization via Ollama ──
+// ── Bookmark summarization ──
 
+/// Get cached summaries for display
+#[tauri::command]
+pub fn get_summaries() -> Result<serde_json::Value, String> {
+    let db = db()?;
+    let summaries = db.get_all_summaries().map_err(|e| e.to_string())?;
+    Ok(serde_json::json!(summaries))
+}
+
+/// Summarize a single URL (on-demand)
 #[tauri::command]
 pub async fn summarize_url(url: String) -> Result<serde_json::Value, String> {
-    // Step 1: Fetch page content
-    let html = fetch_page(&url).map_err(|e| format!("Fetch failed: {e}"))?;
-
-    // Step 2: Extract text (simple HTML strip)
-    let text = extract_text(&html);
-    if text.len() < 50 {
-        return Err("Page has too little content to summarize.".to_string());
+    // Check cache first
+    let db = db()?;
+    if let Ok(Some((summary, engine))) = db.get_summary(&url) {
+        return Ok(
+            serde_json::json!({"url": url, "summary": summary, "engine": engine, "cached": true}),
+        );
     }
 
-    // Step 3: Try Ollama (localhost:11434)
+    let (summary, engine) = do_summarize(&url)?;
+    db.save_summary(&url, &summary, &engine)
+        .map_err(|e| e.to_string())?;
+    Ok(serde_json::json!({"url": url, "summary": summary, "engine": engine, "cached": false}))
+}
+
+/// Background batch: summarize N unsummarized bookmarks
+#[tauri::command]
+pub async fn summarize_batch(count: Option<usize>) -> Result<serde_json::Value, String> {
+    let db = db()?;
+    let limit = count.unwrap_or(10);
+    let urls = db.get_unsummarized_urls(limit).map_err(|e| e.to_string())?;
+
+    let mut done = 0;
+    let mut failed = 0;
+    for (url, _title) in &urls {
+        match do_summarize(url) {
+            Ok((summary, engine)) => {
+                let _ = db.save_summary(url, &summary, &engine);
+                done += 1;
+            }
+            Err(_) => {
+                failed += 1;
+            }
+        }
+    }
+
+    let total_summaries: usize = db.get_all_summaries().map(|m| m.len()).unwrap_or(0);
+    Ok(serde_json::json!({
+        "processed": done,
+        "failed": failed,
+        "remaining": urls.len().saturating_sub(done),
+        "totalSummaries": total_summaries,
+    }))
+}
+
+fn do_summarize(url: &str) -> Result<(String, String), String> {
+    let html = fetch_page(url).map_err(|e| format!("Fetch: {e}"))?;
+    let text = extract_text(&html);
+    if text.len() < 50 {
+        return Err("Too little content".to_string());
+    }
+
     let truncated = if text.len() > 4000 {
         &text[..4000]
     } else {
         &text
     };
 
-    match call_ollama(truncated).await {
-        Ok(summary) => Ok(serde_json::json!({
-            "url": url,
-            "summary": summary,
-            "engine": "ollama",
-            "textLength": text.len(),
-        })),
-        Err(ollama_err) => {
-            // Fallback: extractive summary (first 3 sentences)
+    // Try Ollama first
+    match call_ollama(truncated) {
+        Ok(s) => Ok((s, "ollama".to_string())),
+        Err(_) => {
+            // Extractive fallback
             let sentences: Vec<&str> = text.split(". ").filter(|s| s.len() > 20).take(3).collect();
             let summary = if sentences.is_empty() {
                 text.chars().take(200).collect::<String>() + "..."
             } else {
                 sentences.join(". ") + "."
             };
-            Ok(serde_json::json!({
-                "url": url,
-                "summary": summary,
-                "engine": "extractive",
-                "note": format!("Ollama unavailable ({ollama_err}). Using extractive summary."),
-                "textLength": text.len(),
-            }))
+            Ok((summary, "extractive".to_string()))
         }
     }
 }
@@ -500,53 +576,64 @@ fn fetch_page(url: &str) -> Result<String, Box<dyn std::error::Error>> {
 }
 
 fn extract_text(html: &str) -> String {
-    // Simple HTML tag stripper
+    // Properly strip script/style blocks, then tags
+    // Step 1: Remove <script>...</script> and <style>...</style> blocks entirely
+    let mut clean = html.to_string();
+    for tag in &["script", "style", "noscript", "svg", "head"] {
+        loop {
+            let open = format!("<{}", tag);
+            let close = format!("</{}>", tag);
+            let lower = clean.to_lowercase();
+            if let Some(start) = lower.find(&open) {
+                if let Some(end) = lower[start..].find(&close) {
+                    clean = format!(
+                        "{} {}",
+                        &clean[..start],
+                        &clean[start + end + close.len()..]
+                    );
+                } else {
+                    // No closing tag, remove from open tag to end
+                    clean = clean[..start].to_string();
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
+    // Step 2: Strip remaining HTML tags
     let mut text = String::new();
     let mut in_tag = false;
-    let mut in_script = false;
-    let mut in_style = false;
-
-    for c in html.chars() {
+    for c in clean.chars() {
         if c == '<' {
             in_tag = true;
             continue;
         }
         if c == '>' {
             in_tag = false;
-            // Check for script/style end
-            let lower = text.to_lowercase();
-            if lower.ends_with("script") || lower.ends_with("style") {
-                // crude but works for stripping
-            }
+            text.push(' ');
             continue;
         }
-        if in_tag {
-            // Check tag names
-            let tag_check = html.to_lowercase();
-            if tag_check.contains("<script") {
-                in_script = true;
-            }
-            if tag_check.contains("</script") {
-                in_script = false;
-            }
-            if tag_check.contains("<style") {
-                in_style = true;
-            }
-            if tag_check.contains("</style") {
-                in_style = false;
-            }
-            continue;
-        }
-        if !in_script && !in_style {
+        if !in_tag {
             text.push(c);
         }
     }
 
-    // Clean up whitespace
+    // Step 3: Decode common HTML entities
+    let text = text
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&nbsp;", " ");
+
+    // Step 4: Collapse whitespace
     text.split_whitespace().collect::<Vec<&str>>().join(" ")
 }
 
-async fn call_ollama(text: &str) -> Result<String, String> {
+fn call_ollama(text: &str) -> Result<String, String> {
     let prompt =
         format!("Summarize the following web page content in 2-3 concise sentences:\n\n{text}");
 
