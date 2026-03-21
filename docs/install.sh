@@ -39,10 +39,10 @@ esac
 
 info "Detected: ${BOLD}$OS $ARCH${RESET} ($TARGET)"
 
-# Get latest release
+# Get latest release (may not exist yet)
 info "Fetching latest release..."
 RELEASE_URL="https://api.github.com/repos/$REPO/releases/latest"
-DOWNLOAD_URL=$(curl -fsSL "$RELEASE_URL" | grep "browser_download_url.*$TARGET" | head -1 | cut -d '"' -f 4)
+DOWNLOAD_URL=$(curl -sSL "$RELEASE_URL" 2>/dev/null | grep "browser_download_url.*$TARGET" | head -1 | cut -d '"' -f 4 || true)
 
 if [ -z "$DOWNLOAD_URL" ]; then
   info "No prebuilt binary found. Building from source..."
