@@ -6,6 +6,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
+            commands::ping,
             commands::detect_browsers,
             commands::import_browser,
             commands::import_all,
@@ -18,6 +19,11 @@ fn main() {
             commands::open_url,
             commands::get_auth_entries,
             commands::delete_browser_data,
+            commands::view_password,
+            commands::get_graph_data,
+            commands::summarize_url,
+            commands::save_settings,
+            commands::load_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running browsync");

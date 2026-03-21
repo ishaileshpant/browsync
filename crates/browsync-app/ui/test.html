@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head><title>browsync test</title></head>
+<body style="font-family:sans-serif;padding:2rem;background:#111;color:#fff">
+  <h1 id="title">browsync test page</h1>
+  <button onclick="document.getElementById('title').textContent='CLICK WORKS!'" style="padding:1rem 2rem;font-size:1.2rem;cursor:pointer">
+    Click Me
+  </button>
+  <hr>
+  <div id="status">Checking Tauri...</div>
+  <div id="result"></div>
+  <script>
+    document.getElementById('status').textContent =
+      'window.__TAURI__ = ' + (typeof window.__TAURI__) +
+      ' | keys: ' + (window.__TAURI__ ? Object.keys(window.__TAURI__).join(', ') : 'N/A');
+
+    if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
+      window.__TAURI__.core.invoke('ping').then(function(r) {
+        document.getElementById('result').textContent = 'IPC ping result: ' + r;
+        document.getElementById('result').style.color = '#4ade80';
+      }).catch(function(e) {
+        document.getElementById('result').textContent = 'IPC ping error: ' + e;
+        document.getElementById('result').style.color = '#ef4444';
+      });
+    } else {
+      document.getElementById('result').textContent = 'No invoke available';
+      document.getElementById('result').style.color = '#ef4444';
+    }
+  </script>
+</body>
+</html>

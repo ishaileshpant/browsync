@@ -55,7 +55,7 @@ impl Database {
                 synced_at TEXT NOT NULL
             );
 
-            CREATE INDEX IF NOT EXISTS idx_bookmarks_url ON bookmarks(url);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_bookmarks_url_browser ON bookmarks(url, source_browser);
             CREATE INDEX IF NOT EXISTS idx_bookmarks_browser ON bookmarks(source_browser);
 
             CREATE TABLE IF NOT EXISTS history (
@@ -68,7 +68,7 @@ impl Database {
                 duration_secs INTEGER
             );
 
-            CREATE INDEX IF NOT EXISTS idx_history_url ON history(url);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_history_url_browser ON history(url, source_browser);
             CREATE INDEX IF NOT EXISTS idx_history_visited ON history(last_visited);
             CREATE INDEX IF NOT EXISTS idx_history_browser ON history(source_browser);
 
@@ -140,7 +140,7 @@ impl Database {
             "INSERT INTO bookmarks (id, url, title, folder_path, tags, favicon_url,
                                     source_browser, source_id, created_at, modified_at, synced_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
-             ON CONFLICT(id) DO UPDATE SET
+             ON CONFLICT(url, source_browser) DO UPDATE SET
                 title = excluded.title,
                 folder_path = excluded.folder_path,
                 tags = excluded.tags,
@@ -183,10 +183,10 @@ impl Database {
             "INSERT INTO history (id, url, title, visit_count, last_visited,
                                   source_browser, duration_secs)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-             ON CONFLICT(id) DO UPDATE SET
+             ON CONFLICT(url, source_browser) DO UPDATE SET
                 title = excluded.title,
-                visit_count = excluded.visit_count,
-                last_visited = excluded.last_visited",
+                visit_count = MAX(history.visit_count, excluded.visit_count),
+                last_visited = MAX(history.last_visited, excluded.last_visited)",
             params![
                 entry.id.to_string(),
                 entry.url,

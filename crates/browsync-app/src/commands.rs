@@ -4,6 +4,12 @@ use browsync_core::models::{Bookmark, Browser, HistoryEntry};
 use browsync_core::parsers;
 use serde::Serialize;
 
+#[tauri::command]
+pub fn ping() -> String {
+    eprintln!("[browsync-app] ping received from frontend");
+    "pong".to_string()
+}
+
 #[derive(Serialize)]
 pub struct BrowserInfo {
     name: String,
@@ -274,4 +280,336 @@ pub fn delete_browser_data(browser_name: String) -> Result<String, String> {
     let db = db()?;
     db.clear_browser(browser).map_err(|e| e.to_string())?;
     Ok(format!("Cleared all {} data", browser))
+}
+
+// ── Password viewing with biometric auth ──
+
+#[tauri::command]
+pub fn view_password(domain: String) -> Result<serde_json::Value, String> {
+    // Use macOS security CLI with user prompt (triggers Touch ID / password dialog)
+    let output = std::process::Command::new("security")
+        .args([
+            "find-internet-password",
+            "-s",
+            &domain,
+            "-w", // output password only
+        ])
+        .output()
+        .map_err(|e| format!("Failed to access Keychain: {e}"))?;
+
+    if output.status.success() {
+        let password = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        Ok(serde_json::json!({
+            "domain": domain,
+            "password": password,
+            "source": "keychain"
+        }))
+    } else {
+        // Try generic password
+        let output2 = std::process::Command::new("security")
+            .args(["find-generic-password", "-s", &domain, "-w"])
+            .output()
+            .map_err(|e| format!("Keychain error: {e}"))?;
+
+        if output2.status.success() {
+            let password = String::from_utf8_lossy(&output2.stdout).trim().to_string();
+            Ok(serde_json::json!({
+                "domain": domain,
+                "password": password,
+                "source": "keychain"
+            }))
+        } else {
+            Err(format!(
+                "No Keychain entry found for {domain}. Password may be stored in browser's encrypted vault."
+            ))
+        }
+    }
+}
+
+// ── Graph data for visualization ──
+
+#[derive(Serialize)]
+pub struct TimelinePoint {
+    date: String,
+    bookmarks: usize,
+    history: usize,
+}
+
+#[derive(Serialize)]
+pub struct DomainCount {
+    domain: String,
+    count: u32,
+}
+
+#[tauri::command]
+pub fn get_graph_data() -> Result<serde_json::Value, String> {
+    let db = db()?;
+
+    // Top domains by visit count
+    let bookmarks = db.get_bookmarks(None).map_err(|e| e.to_string())?;
+    let history = db.get_history(None, 5000).map_err(|e| e.to_string())?;
+
+    // Domain distribution from bookmarks
+    let mut domain_counts: std::collections::HashMap<String, u32> =
+        std::collections::HashMap::new();
+    for b in &bookmarks {
+        let domain = b
+            .url
+            .replace("https://", "")
+            .replace("http://", "")
+            .split('/')
+            .next()
+            .unwrap_or("")
+            .to_string();
+        if !domain.is_empty() {
+            *domain_counts.entry(domain).or_insert(0) += 1;
+        }
+    }
+    let mut top_domains: Vec<DomainCount> = domain_counts
+        .into_iter()
+        .map(|(domain, count)| DomainCount { domain, count })
+        .collect();
+    top_domains.sort_by(|a, b| b.count.cmp(&a.count));
+    top_domains.truncate(15);
+
+    // Top visited from history
+    let mut visit_domains: std::collections::HashMap<String, u32> =
+        std::collections::HashMap::new();
+    for h in &history {
+        let domain = h
+            .url
+            .replace("https://", "")
+            .replace("http://", "")
+            .split('/')
+            .next()
+            .unwrap_or("")
+            .to_string();
+        if !domain.is_empty() {
+            *visit_domains.entry(domain).or_insert(0) += h.visit_count;
+        }
+    }
+    let mut top_visited: Vec<DomainCount> = visit_domains
+        .into_iter()
+        .map(|(domain, count)| DomainCount { domain, count })
+        .collect();
+    top_visited.sort_by(|a, b| b.count.cmp(&a.count));
+    top_visited.truncate(15);
+
+    // Bookmark creation timeline (by month)
+    let mut timeline: std::collections::BTreeMap<String, (usize, usize)> =
+        std::collections::BTreeMap::new();
+    for b in &bookmarks {
+        let month = b.created_at.format("%Y-%m").to_string();
+        timeline.entry(month).or_insert((0, 0)).0 += 1;
+    }
+    for h in &history {
+        let month = h.last_visited.format("%Y-%m").to_string();
+        timeline.entry(month).or_insert((0, 0)).1 += 1;
+    }
+    let timeline_points: Vec<TimelinePoint> = timeline
+        .into_iter()
+        .map(|(date, (bk, hist))| TimelinePoint {
+            date,
+            bookmarks: bk,
+            history: hist,
+        })
+        .collect();
+
+    // Browser distribution
+    let mut browser_dist: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
+    for b in &bookmarks {
+        let name = serde_json::to_string(&b.source_browser)
+            .unwrap_or_default()
+            .trim_matches('"')
+            .to_string();
+        *browser_dist.entry(name).or_insert(0) += 1;
+    }
+
+    Ok(serde_json::json!({
+        "topDomains": top_domains,
+        "topVisited": top_visited,
+        "timeline": timeline_points,
+        "browserDist": browser_dist,
+        "totalBookmarks": bookmarks.len(),
+        "totalHistory": history.len(),
+    }))
+}
+
+// ── Bookmark summarization via Ollama ──
+
+#[tauri::command]
+pub async fn summarize_url(url: String) -> Result<serde_json::Value, String> {
+    // Step 1: Fetch page content
+    let html = fetch_page(&url).map_err(|e| format!("Fetch failed: {e}"))?;
+
+    // Step 2: Extract text (simple HTML strip)
+    let text = extract_text(&html);
+    if text.len() < 50 {
+        return Err("Page has too little content to summarize.".to_string());
+    }
+
+    // Step 3: Try Ollama (localhost:11434)
+    let truncated = if text.len() > 4000 {
+        &text[..4000]
+    } else {
+        &text
+    };
+
+    match call_ollama(truncated).await {
+        Ok(summary) => Ok(serde_json::json!({
+            "url": url,
+            "summary": summary,
+            "engine": "ollama",
+            "textLength": text.len(),
+        })),
+        Err(ollama_err) => {
+            // Fallback: extractive summary (first 3 sentences)
+            let sentences: Vec<&str> = text.split(". ").filter(|s| s.len() > 20).take(3).collect();
+            let summary = if sentences.is_empty() {
+                text.chars().take(200).collect::<String>() + "..."
+            } else {
+                sentences.join(". ") + "."
+            };
+            Ok(serde_json::json!({
+                "url": url,
+                "summary": summary,
+                "engine": "extractive",
+                "note": format!("Ollama unavailable ({ollama_err}). Using extractive summary."),
+                "textLength": text.len(),
+            }))
+        }
+    }
+}
+
+fn fetch_page(url: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let output = std::process::Command::new("curl")
+        .args([
+            "-fsSL",
+            "--max-time",
+            "10",
+            "-A",
+            "Mozilla/5.0 (compatible; browsync/0.1)",
+            url,
+        ])
+        .output()?;
+    if !output.status.success() {
+        return Err(format!("HTTP error for {url}").into());
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+fn extract_text(html: &str) -> String {
+    // Simple HTML tag stripper
+    let mut text = String::new();
+    let mut in_tag = false;
+    let mut in_script = false;
+    let mut in_style = false;
+
+    for c in html.chars() {
+        if c == '<' {
+            in_tag = true;
+            continue;
+        }
+        if c == '>' {
+            in_tag = false;
+            // Check for script/style end
+            let lower = text.to_lowercase();
+            if lower.ends_with("script") || lower.ends_with("style") {
+                // crude but works for stripping
+            }
+            continue;
+        }
+        if in_tag {
+            // Check tag names
+            let tag_check = html.to_lowercase();
+            if tag_check.contains("<script") {
+                in_script = true;
+            }
+            if tag_check.contains("</script") {
+                in_script = false;
+            }
+            if tag_check.contains("<style") {
+                in_style = true;
+            }
+            if tag_check.contains("</style") {
+                in_style = false;
+            }
+            continue;
+        }
+        if !in_script && !in_style {
+            text.push(c);
+        }
+    }
+
+    // Clean up whitespace
+    text.split_whitespace().collect::<Vec<&str>>().join(" ")
+}
+
+async fn call_ollama(text: &str) -> Result<String, String> {
+    let prompt =
+        format!("Summarize the following web page content in 2-3 concise sentences:\n\n{text}");
+
+    let body = serde_json::json!({
+        "model": "qwen2.5:0.5b",
+        "prompt": prompt,
+        "stream": false,
+        "options": {
+            "temperature": 0.3,
+            "num_predict": 150
+        }
+    });
+
+    let output = std::process::Command::new("curl")
+        .args([
+            "-fsSL",
+            "--max-time",
+            "30",
+            "-X",
+            "POST",
+            "http://localhost:11434/api/generate",
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            &body.to_string(),
+        ])
+        .output()
+        .map_err(|e| format!("curl failed: {e}"))?;
+
+    if !output.status.success() {
+        return Err(
+            "Ollama not running or model not available. Run: ollama pull qwen2.5:0.5b".to_string(),
+        );
+    }
+
+    let resp: serde_json::Value =
+        serde_json::from_slice(&output.stdout).map_err(|e| format!("Parse error: {e}"))?;
+
+    resp["response"]
+        .as_str()
+        .map(|s| s.trim().to_string())
+        .ok_or_else(|| "No response from Ollama".to_string())
+}
+
+// ── Theme management ──
+
+#[tauri::command]
+pub fn save_settings(settings_json: String) -> Result<(), String> {
+    let path = dirs::home_dir()
+        .ok_or("No home dir")?
+        .join(".browsync")
+        .join("settings.json");
+    std::fs::write(&path, &settings_json).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn load_settings() -> Result<String, String> {
+    let path = dirs::home_dir()
+        .ok_or("No home dir")?
+        .join(".browsync")
+        .join("settings.json");
+    match std::fs::read_to_string(&path) {
+        Ok(s) => Ok(s),
+        Err(_) => Ok("{}".to_string()),
+    }
 }
