@@ -472,6 +472,144 @@ pub fn get_graph_data() -> Result<serde_json::Value, String> {
     }))
 }
 
+/// 3D graph data: nodes (domains, folders, browsers) + links (bookmark relationships)
+#[tauri::command]
+pub fn get_3d_graph_data() -> Result<serde_json::Value, String> {
+    let db = db()?;
+    let bookmarks = db.get_bookmarks(None).map_err(|e| e.to_string())?;
+    let history = db.get_history(None, 2000).map_err(|e| e.to_string())?;
+
+    let mut nodes: Vec<serde_json::Value> = Vec::new();
+    let mut links: Vec<serde_json::Value> = Vec::new();
+    let mut node_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    // Add browser nodes (center hubs)
+    let mut browser_set: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for b in &bookmarks {
+        let name = serde_json::to_string(&b.source_browser)
+            .unwrap_or_default()
+            .trim_matches('"')
+            .to_string();
+        browser_set.insert(name);
+    }
+    for name in &browser_set {
+        let id = format!("browser:{}", name);
+        nodes.push(serde_json::json!({"id": id, "label": name, "group": "browser", "size": 12}));
+        node_ids.insert(id);
+    }
+
+    // Add folder nodes and domain nodes from bookmarks
+    let mut domain_visits: std::collections::HashMap<String, u32> =
+        std::collections::HashMap::new();
+    for h in &history {
+        let domain = extract_domain_from_url(&h.url);
+        *domain_visits.entry(domain).or_insert(0) += h.visit_count;
+    }
+
+    let mut domain_bookmark_count: std::collections::HashMap<String, u32> =
+        std::collections::HashMap::new();
+    let mut folder_set: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    for b in &bookmarks {
+        let domain = extract_domain_from_url(&b.url);
+        *domain_bookmark_count.entry(domain.clone()).or_insert(0) += 1;
+
+        // Top-level folder
+        if let Some(folder) = b.folder_path.get(0) {
+            if !folder.is_empty() {
+                folder_set.insert(folder.clone());
+            }
+        }
+    }
+
+    // Add folder nodes
+    for folder in &folder_set {
+        let id = format!("folder:{}", folder);
+        if node_ids.insert(id.clone()) {
+            nodes
+                .push(serde_json::json!({"id": id, "label": folder, "group": "folder", "size": 6}));
+        }
+    }
+
+    // Add top domain nodes (limit to top 80 by bookmark count)
+    let mut sorted_domains: Vec<(String, u32)> = domain_bookmark_count.into_iter().collect();
+    sorted_domains.sort_by(|a, b| b.1.cmp(&a.1));
+    sorted_domains.truncate(80);
+
+    for (domain, bk_count) in &sorted_domains {
+        if domain.is_empty() {
+            continue;
+        }
+        let visits = domain_visits.get(domain).copied().unwrap_or(0);
+        let size = 2.0 + (*bk_count as f64).sqrt() * 1.5 + (visits as f64).sqrt() * 0.3;
+        let id = format!("domain:{}", domain);
+        if node_ids.insert(id.clone()) {
+            nodes.push(serde_json::json!({
+                "id": id, "label": domain, "group": "domain",
+                "size": size, "bookmarks": bk_count, "visits": visits
+            }));
+        }
+    }
+
+    // Build links: browser -> folder, folder -> domain, browser -> domain
+    for b in &bookmarks {
+        let domain = extract_domain_from_url(&b.url);
+        let domain_id = format!("domain:{}", domain);
+        if !node_ids.contains(&domain_id) {
+            continue;
+        }
+
+        let browser_name = serde_json::to_string(&b.source_browser)
+            .unwrap_or_default()
+            .trim_matches('"')
+            .to_string();
+        let browser_id = format!("browser:{}", browser_name);
+
+        let folder = b.folder_path.get(0).cloned().unwrap_or_default();
+        let folder_id = format!("folder:{}", folder);
+
+        // Browser -> folder
+        if !folder.is_empty() && node_ids.contains(&folder_id) {
+            links.push(serde_json::json!({"source": browser_id, "target": folder_id}));
+        }
+
+        // Folder -> domain (or browser -> domain if no folder)
+        if !folder.is_empty() && node_ids.contains(&folder_id) {
+            links.push(serde_json::json!({"source": folder_id, "target": domain_id}));
+        } else {
+            links.push(serde_json::json!({"source": browser_id, "target": domain_id}));
+        }
+    }
+
+    // Deduplicate links
+    let mut seen_links: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let unique_links: Vec<serde_json::Value> = links
+        .into_iter()
+        .filter(|l| {
+            let key = format!(
+                "{}->{}",
+                l["source"].as_str().unwrap_or(""),
+                l["target"].as_str().unwrap_or("")
+            );
+            seen_links.insert(key)
+        })
+        .collect();
+
+    Ok(serde_json::json!({
+        "nodes": nodes,
+        "links": unique_links,
+    }))
+}
+
+fn extract_domain_from_url(url: &str) -> String {
+    url.replace("https://", "")
+        .replace("http://", "")
+        .split('/')
+        .next()
+        .unwrap_or("")
+        .to_string()
+}
+
 // ── Bookmark summarization ──
 
 /// Get cached summaries for display
