@@ -603,12 +603,6 @@
     catch(e){toast(String(e),1);}
   }
 
-  async function _unused_doSummarize(url, btn) {
-    // Removed: summarization moved to dedicated Summaries view
-    void(url); void(btn);
-    }
-  }
-
   async function doViewPassword(domain) {
     try {
       var r = await invoke('view_password', { domain: domain });
