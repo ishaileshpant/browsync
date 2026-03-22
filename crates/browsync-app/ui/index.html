@@ -178,13 +178,13 @@
   }
   async function loadChartJs() {
     if (typeof Chart !== 'undefined') return;
-    await loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js');
+    await loadScript('https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js');
   }
   async function load3DLibs() {
     if (typeof ForceGraph3D !== 'undefined') return;
-    await loadScript('https://cdn.jsdelivr.net/npm/three@0.175.0/build/three.min.js');
-    await loadScript('https://cdn.jsdelivr.net/npm/three-spritetext@1.9.5/dist/three-spritetext.min.js');
-    await loadScript('https://cdn.jsdelivr.net/npm/3d-force-graph@1.77.7/dist/3d-force-graph.min.js');
+    await loadScript('https://cdn.jsdelivr.net/npm/three/build/three.min.js');
+    await loadScript('https://cdn.jsdelivr.net/npm/three-spritetext/dist/three-spritetext.min.js');
+    await loadScript('https://cdn.jsdelivr.net/npm/3d-force-graph/dist/3d-force-graph.min.js');
   }
 
   function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -303,7 +303,10 @@
   // ══════════════════════════════════════════
   async function vGraphs(el) {
     el.innerHTML = '<div class="empty">Loading charts...</div>';
-    await loadChartJs();
+    try { await loadChartJs(); } catch(e) {
+      el.innerHTML = '<div class="empty" style="color:var(--red)">Could not load Chart.js. Check internet connection.</div>';
+      return;
+    }
     var data = await invoke('get_graph_data');
     el.innerHTML = '<div class="graph-grid">' +
       '<div class="graph-card full"><h4>Activity Timeline (Bookmarks + History by Month)</h4><canvas id="chart-timeline"></canvas></div>' +
@@ -380,7 +383,11 @@
 
   async function v3DGraph(el) {
     el.innerHTML = '<div class="empty">Loading 3D engine...</div>';
-    await load3DLibs();
+    try { await load3DLibs(); } catch(e) {
+      el.innerHTML = '<div class="empty" style="color:var(--red)">Could not load 3D libraries.<br><br>' +
+        '<span style="font-size:.78rem;color:var(--text-m)">'+esc(String(e))+'<br><br>Check your internet connection and try again.</span></div>';
+      return;
+    }
     var data = await invoke('get_3d_graph_data');
 
     el.innerHTML = '<div id="graph3d-container">' +
