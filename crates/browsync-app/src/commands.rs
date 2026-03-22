@@ -700,10 +700,11 @@ fn fetch_page(url: &str) -> Result<String, Box<dyn std::error::Error>> {
     let output = std::process::Command::new("curl")
         .args([
             "-fsSL",
-            "--max-time",
-            "10",
-            "-A",
-            "Mozilla/5.0 (compatible; browsync/0.1)",
+            "--max-time", "10",
+            "--compressed",
+            "-H", "Accept: text/html,application/xhtml+xml",
+            "-H", "Accept-Language: en-US,en;q=0.9",
+            "-A", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
             url,
         ])
         .output()?;
@@ -714,23 +715,63 @@ fn fetch_page(url: &str) -> Result<String, Box<dyn std::error::Error>> {
 }
 
 fn extract_text(html: &str) -> String {
-    // Properly strip script/style blocks, then tags
-    // Step 1: Remove <script>...</script> and <style>...</style> blocks entirely
-    let mut clean = html.to_string();
-    for tag in &["script", "style", "noscript", "svg", "head"] {
+    // Strategy: use meta description + title if available (best quality),
+    // then fall back to article/main content, skip nav/footer/header junk.
+
+    let lower = html.to_lowercase();
+
+    // 1. Extract <meta name="description" content="...">
+    let meta_desc = extract_meta_content(&lower, html, "description");
+
+    // 2. Extract <meta property="og:description" content="...">
+    let og_desc = extract_meta_content(&lower, html, "og:description");
+
+    // 3. Extract <title>
+    let title = extract_between(&lower, html, "<title", "</title>");
+
+    // 4. Try to get clean body text from <article> or <main>
+    let article = extract_between(&lower, html, "<article", "</article>")
+        .or_else(|| extract_between(&lower, html, "<main", "</main>"));
+
+    // Build the best summary source
+    let mut parts: Vec<String> = Vec::new();
+
+    if let Some(t) = &title {
+        let clean = strip_tags(t);
+        if clean.len() > 5 {
+            parts.push(clean);
+        }
+    }
+
+    // Prefer meta description (human-written summary on most sites)
+    if let Some(desc) = meta_desc.or(og_desc) {
+        if desc.len() > 20 {
+            parts.push(desc);
+            // Meta description is usually good enough
+            return parts.join(". ");
+        }
+    }
+
+    // Fall back to article/main content, or full body
+    let body_html = article.unwrap_or_else(|| html.to_string());
+
+    // Remove junk blocks
+    let mut clean = body_html;
+    for tag in &[
+        "script", "style", "noscript", "svg", "nav", "header", "footer", "aside", "form", "iframe",
+    ] {
         loop {
             let open = format!("<{}", tag);
             let close = format!("</{}>", tag);
-            let lower = clean.to_lowercase();
-            if let Some(start) = lower.find(&open) {
-                if let Some(end) = lower[start..].find(&close) {
+            let lc = clean.to_lowercase();
+            if let Some(start) = lc.find(&open) {
+                if let Some(end) = lc[start..].find(&close) {
                     clean = format!(
                         "{} {}",
                         &clean[..start],
                         &clean[start + end + close.len()..]
                     );
                 } else {
-                    // No closing tag, remove from open tag to end
                     clean = clean[..start].to_string();
                     break;
                 }
@@ -740,10 +781,95 @@ fn extract_text(html: &str) -> String {
         }
     }
 
-    // Step 2: Strip remaining HTML tags
+    let body_text = strip_tags(&clean);
+
+    // Filter out junk sentences
+    let sentences: Vec<&str> = body_text
+        .split(". ")
+        .filter(|s| {
+            let sl = s.to_lowercase();
+            s.len() > 30
+                && !sl.contains("skip to")
+                && !sl.contains("accept cookie")
+                && !sl.contains("toggle")
+                && !sl.contains("sign in")
+                && !sl.contains("log in")
+                && !sl.contains("menu")
+                && !sl.contains("navigation")
+                && !sl.starts_with("click")
+                && !sl.starts_with("home ")
+                && s.chars().filter(|c| c.is_alphabetic()).count() > s.len() / 3
+        })
+        .take(4)
+        .collect();
+
+    if !sentences.is_empty() {
+        parts.push(sentences.join(". "));
+    }
+
+    let result = parts.join(". ");
+    if result.len() > 500 {
+        result[..500].to_string() + "..."
+    } else {
+        result
+    }
+}
+
+fn extract_meta_content(lower: &str, original: &str, name: &str) -> Option<String> {
+    // Match <meta name="description" content="..."> or <meta property="og:..." content="...">
+    let patterns = [
+        format!("name=\"{}\"", name),
+        format!("property=\"{}\"", name),
+        format!("name='{}'", name),
+        format!("property='{}'", name),
+    ];
+
+    for pat in &patterns {
+        if let Some(meta_pos) = lower.find(pat.as_str()) {
+            // Find the content= attribute near this position
+            let search_range =
+                &lower[meta_pos.saturating_sub(200)..lower.len().min(meta_pos + 500)];
+            if let Some(content_pos) = search_range.find("content=\"") {
+                let start = content_pos + 9;
+                if let Some(end) = search_range[start..].find('"') {
+                    let orig_start = meta_pos.saturating_sub(200) + start;
+                    let orig_end = orig_start + end;
+                    if orig_end <= original.len() {
+                        let content = &original[orig_start..orig_end];
+                        let decoded = content
+                            .replace("&amp;", "&")
+                            .replace("&lt;", "<")
+                            .replace("&gt;", ">")
+                            .replace("&quot;", "\"")
+                            .replace("&#39;", "'");
+                        if decoded.len() > 10 {
+                            return Some(decoded);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+fn extract_between(lower: &str, original: &str, open_tag: &str, close_tag: &str) -> Option<String> {
+    if let Some(start) = lower.find(open_tag) {
+        // Skip past the opening tag's >
+        if let Some(gt) = lower[start..].find('>') {
+            let content_start = start + gt + 1;
+            if let Some(end) = lower[content_start..].find(close_tag) {
+                return Some(original[content_start..content_start + end].to_string());
+            }
+        }
+    }
+    None
+}
+
+fn strip_tags(html: &str) -> String {
     let mut text = String::new();
     let mut in_tag = false;
-    for c in clean.chars() {
+    for c in html.chars() {
         if c == '<' {
             in_tag = true;
             continue;
@@ -757,18 +883,15 @@ fn extract_text(html: &str) -> String {
             text.push(c);
         }
     }
-
-    // Step 3: Decode common HTML entities
-    let text = text
-        .replace("&amp;", "&")
+    text.replace("&amp;", "&")
         .replace("&lt;", "<")
         .replace("&gt;", ">")
         .replace("&quot;", "\"")
         .replace("&#39;", "'")
-        .replace("&nbsp;", " ");
-
-    // Step 4: Collapse whitespace
-    text.split_whitespace().collect::<Vec<&str>>().join(" ")
+        .replace("&nbsp;", " ")
+        .split_whitespace()
+        .collect::<Vec<&str>>()
+        .join(" ")
 }
 
 fn call_ollama(text: &str) -> Result<String, String> {
