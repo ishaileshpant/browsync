@@ -81,11 +81,16 @@
   .summary-box { background: var(--bg-el); border: 1px solid var(--border); border-radius: var(--r); padding: .6rem .8rem; margin-top: .4rem; font-size: .8rem; line-height: 1.5; color: var(--text-s); }
   .summary-box .engine { font-size: .68rem; color: var(--text-m); margin-top: .3rem; }
 
-  #graph3d-container { width: 100%; height: 100%; position: relative; }
-  .graph3d-legend { position: absolute; top: .5rem; right: .5rem; background: var(--bg-s); border: 1px solid var(--border); border-radius: var(--r); padding: .5rem .7rem; font-size: .72rem; z-index: 10; }
+  #graph3d-container { width: 100%; height: 100%; position: relative; cursor: grab; }
+  #graph3d-container:active { cursor: grabbing; }
+  #graph3d-container canvas { cursor: inherit !important; }
+  .graph3d-legend { position: absolute; top: .5rem; right: .5rem; background: var(--bg-s); border: 1px solid var(--border); border-radius: var(--r); padding: .5rem .7rem; font-size: .72rem; z-index: 10; pointer-events: none; }
   .graph3d-legend div { display: flex; align-items: center; gap: .4rem; margin-bottom: .25rem; }
   .graph3d-legend .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .graph3d-controls { position: absolute; bottom: .5rem; left: .5rem; display: flex; gap: .3rem; z-index: 10; }
+  .graph3d-controls { position: absolute; bottom: .75rem; left: .75rem; display: flex; gap: .4rem; z-index: 20; pointer-events: auto; }
+  .graph3d-controls .btn { background: var(--bg-s); border: 1px solid var(--border-h); padding: .4rem .7rem; font-size: .78rem; cursor: pointer; opacity: .9; }
+  .graph3d-controls .btn:hover { opacity: 1; border-color: var(--accent); color: var(--accent); }
+  .graph3d-hint { position: absolute; bottom: .75rem; right: .75rem; font-size: .68rem; color: var(--text-m); z-index: 10; pointer-events: none; text-align: right; line-height: 1.5; }
 
   .empty { text-align: center; padding: 2rem; color: var(--text-m); }
   .toast { position: fixed; bottom: 1rem; right: 1rem; background: var(--bg-el); border: 1px solid var(--green); border-radius: var(--r); padding: .45rem .8rem; font-size: .8rem; z-index: 999; transform: translateY(80px); opacity: 0; transition: all .25s; }
@@ -406,10 +411,11 @@
             '<div style="margin-top:.3rem;font-size:.68rem;color:var(--text-m)">X = timeline &middot; Click domain to drill down</div>' +
           '</div>' +
           '<div class="graph3d-controls">' +
-            '<button class="btn" data-action="graph-reset">Reset</button>' +
-            '<button class="btn" data-action="graph-top">Top</button>' +
-            '<button class="btn" data-action="graph-back">Back</button>' +
+            '<button class="btn" data-action="graph-reset">Reset View</button>' +
+            '<button class="btn" data-action="graph-top">Top Down</button>' +
+            '<button class="btn" data-action="graph-back">Back to Overview</button>' +
           '</div>' +
+          '<div class="graph3d-hint">Drag to rotate &middot; Scroll to zoom<br>Click domain to drill down</div>' +
         '</div>' +
         '<div id="graph3d-panel" style="width:0;overflow:hidden;transition:width .3s;border-left:1px solid var(--border);background:var(--bg-s)"></div>' +
       '</div>';
@@ -500,6 +506,9 @@
       .linkColor(function() { return 'rgba(255,255,255,0.04)'; })
       .linkWidth(0.2)
       .linkOpacity(0.15)
+      .onNodeHover(function(node) {
+        container.style.cursor = node ? 'pointer' : 'grab';
+      })
       .onNodeClick(function(node) {
         if (node.group === 'domain' && node.cluster) {
           drillIntoDomain(container, node);
