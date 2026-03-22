@@ -377,106 +377,239 @@
   }
 
   // ══════════════════════════════════════════
-  // 3D FORCE GRAPH VIEW
+  // 3D TIMELINE GRAPH VIEW
   // ══════════════════════════════════════════
   var graph3dInstance = null;
+  var graph3dData = null;
 
   async function v3DGraph(el) {
     el.innerHTML = '<div class="empty">Loading 3D engine...</div>';
     try { await load3DLibs(); } catch(e) {
-      el.innerHTML = '<div class="empty" style="color:var(--red)">Could not load 3D libraries.<br><br>' +
-        '<span style="font-size:.78rem;color:var(--text-m)">'+esc(String(e))+'<br><br>Check your internet connection and try again.</span></div>';
+      el.innerHTML = '<div class="empty" style="color:var(--red)">Could not load 3D libraries. Check internet connection.<br><span style="font-size:.75rem;color:var(--text-m)">'+esc(String(e))+'</span></div>';
       return;
     }
-    var data = await invoke('get_3d_graph_data');
 
-    el.innerHTML = '<div id="graph3d-container">' +
-      '<div class="graph3d-legend">' +
-      '<div><span class="dot" style="background:#ff6b6b"></span> Browser</div>' +
-      '<div><span class="dot" style="background:#ffd43b"></span> Folder</div>' +
-      '<div><span class="dot" style="background:#69db7c"></span> Domain (size = bookmarks + visits)</div>' +
-      '</div>' +
-      '<div class="graph3d-controls">' +
-      '<button class="btn" data-action="graph-reset">Reset View</button>' +
-      '<button class="btn" data-action="graph-top">Top Down</button>' +
-      '</div>' +
+    graph3dData = await invoke('get_3d_timeline_data');
+    var clusters = graph3dData.clusters;
+    if (!clusters || !clusters.length) {
+      el.innerHTML = '<div class="empty">No data to visualize. Import bookmarks first.</div>';
+      return;
+    }
+
+    el.innerHTML =
+      '<div style="display:flex;height:100%">' +
+        '<div id="graph3d-container" style="flex:1;position:relative">' +
+          '<div class="graph3d-legend">' +
+            '<div><span class="dot" style="background:#69db7c"></span> Domain cluster (size = items)</div>' +
+            '<div><span class="dot" style="background:#60a5fa"></span> Bookmark</div>' +
+            '<div><span class="dot" style="background:#fbbf24"></span> History visit</div>' +
+            '<div style="margin-top:.3rem;font-size:.68rem;color:var(--text-m)">X = timeline &middot; Click domain to drill down</div>' +
+          '</div>' +
+          '<div class="graph3d-controls">' +
+            '<button class="btn" data-action="graph-reset">Reset</button>' +
+            '<button class="btn" data-action="graph-top">Top</button>' +
+            '<button class="btn" data-action="graph-back">Back</button>' +
+          '</div>' +
+        '</div>' +
+        '<div id="graph3d-panel" style="width:0;overflow:hidden;transition:width .3s;border-left:1px solid var(--border);background:var(--bg-s)"></div>' +
       '</div>';
 
     var container = document.getElementById('graph3d-container');
-    var w = container.clientWidth;
-    var h = container.clientHeight || 500;
+    renderDomainClusters(container, clusters);
+  }
 
-    // Color mapping
-    var groupColors = { browser: '#ff6b6b', folder: '#ffd43b', domain: '#69db7c' };
+  function renderDomainClusters(container, clusters) {
+    var minTs = graph3dData.minTimestamp;
+    var maxTs = graph3dData.maxTimestamp;
+    var timeSpan = Math.max(maxTs - minTs, 1);
 
-    // Build the 3D force graph
-    if (typeof ForceGraph3D === 'undefined') {
-      el.innerHTML = '<div class="empty">3D graph library not loaded. Check network connection.</div>';
-      return;
+    // Build nodes: one per domain cluster, spread on timeline
+    var nodes = [];
+    var links = [];
+
+    clusters.forEach(function(c, i) {
+      var avgTs = (c.firstTimestamp + c.lastTimestamp) / 2;
+      var x = ((avgTs - minTs) / timeSpan) * 400 - 200; // timeline X spread
+      var row = i % 10;
+      var col = Math.floor(i / 10);
+      var y = (row - 5) * 25; // vertical spread
+      var z = (col - 2) * 30; // depth spread
+      var size = 3 + Math.sqrt(c.count) * 2;
+
+      nodes.push({
+        id: 'domain:' + c.domain,
+        label: c.domain,
+        group: 'domain',
+        size: size,
+        count: c.count,
+        bookmarks: c.bookmarks,
+        history: c.history,
+        totalVisits: c.totalVisits,
+        fx: x, fy: y, fz: z, // fixed position on timeline
+        cluster: c
+      });
+    });
+
+    // Links between domains that share temporal proximity
+    for (var i = 0; i < nodes.length; i++) {
+      for (var j = i + 1; j < Math.min(i + 3, nodes.length); j++) {
+        if (Math.abs(nodes[i].fx - nodes[j].fx) < 40) {
+          links.push({ source: nodes[i].id, target: nodes[j].id });
+        }
+      }
     }
 
+    if (graph3dInstance) { graph3dInstance._destructor && graph3dInstance._destructor(); }
+
+    var cs = getComputedStyle(document.documentElement);
+    var bgColor = cs.getPropertyValue('--bg').trim();
+
     graph3dInstance = ForceGraph3D()(container)
-      .width(w)
-      .height(h)
-      .backgroundColor(getComputedStyle(document.documentElement).getPropertyValue('--bg').trim())
-      .graphData(data)
+      .width(container.clientWidth)
+      .height(container.clientHeight || 500)
+      .backgroundColor(bgColor)
+      .graphData({ nodes: nodes, links: links })
       .nodeId('id')
-      .nodeLabel(function(node) {
-        var tip = node.label;
-        if (node.bookmarks) tip += ' (' + node.bookmarks + ' bookmarks)';
-        if (node.visits) tip += ' (' + node.visits + ' visits)';
-        return tip;
+      .nodeLabel(function(n) {
+        return n.label + ' — ' + n.count + ' items (' + n.bookmarks + ' bookmarks, ' + n.history + ' history)';
       })
-      .nodeVal(function(node) { return node.size || 3; })
-      .nodeColor(function(node) { return groupColors[node.group] || '#69db7c'; })
-      .nodeOpacity(0.9)
-      .nodeThreeObject(function(node) {
-        // Use sprite text labels for browser/folder nodes
-        if (node.group === 'browser' || node.group === 'folder') {
-          var sprite = new SpriteText(node.label);
-          sprite.color = groupColors[node.group];
-          sprite.textHeight = node.group === 'browser' ? 5 : 3;
-          sprite.backgroundColor = 'rgba(0,0,0,0.6)';
-          sprite.padding = 1.5;
+      .nodeVal(function(n) { return n.size; })
+      .nodeColor(function(n) { return n.group === 'domain' ? '#69db7c' : n.group === 'bookmark' ? '#60a5fa' : '#fbbf24'; })
+      .nodeOpacity(0.85)
+      .nodeThreeObject(function(n) {
+        if (n.group === 'domain') {
+          var sprite = new SpriteText(n.label.substring(0, 25));
+          sprite.color = '#69db7c';
+          sprite.textHeight = Math.min(3 + n.count * 0.15, 6);
+          sprite.backgroundColor = 'rgba(0,0,0,0.5)';
+          sprite.padding = 1;
           sprite.borderRadius = 2;
           return sprite;
         }
-        return undefined; // default sphere for domains
-      })
-      .nodeThreeObjectExtend(function(node) {
-        return node.group !== 'browser' && node.group !== 'folder';
-      })
-      .linkColor(function() { return 'rgba(255,255,255,0.08)'; })
-      .linkWidth(0.3)
-      .linkOpacity(0.3)
-      .linkDirectionalParticles(1)
-      .linkDirectionalParticleWidth(0.6)
-      .linkDirectionalParticleSpeed(0.003)
-      .linkDirectionalParticleColor(function() { return 'rgba(105,219,124,0.4)'; })
-      .onNodeClick(function(node) {
-        if (node.group === 'domain') {
-          invoke('open_url', { url: 'https://' + node.label });
+        if (n.group === 'bookmark' || n.group === 'historyItem') {
+          var sprite = new SpriteText(n.label.substring(0, 30));
+          sprite.color = n.group === 'bookmark' ? '#60a5fa' : '#fbbf24';
+          sprite.textHeight = 2;
+          sprite.backgroundColor = 'rgba(0,0,0,0.4)';
+          sprite.padding = 0.5;
+          return sprite;
         }
-        // Zoom to node
-        var distance = 60;
-        var distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z);
-        graph3dInstance.cameraPosition(
-          { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio },
-          node, 1000
-        );
+        return undefined;
       })
-      .d3AlphaDecay(0.02)
-      .d3VelocityDecay(0.3)
-      .warmupTicks(50)
-      .cooldownTicks(100);
+      .nodeThreeObjectExtend(true)
+      .linkColor(function() { return 'rgba(255,255,255,0.04)'; })
+      .linkWidth(0.2)
+      .linkOpacity(0.15)
+      .onNodeClick(function(node) {
+        if (node.group === 'domain' && node.cluster) {
+          drillIntoDomain(container, node);
+        } else if (node.url) {
+          invoke('open_url', { url: node.url });
+        }
+      })
+      .d3AlphaDecay(0.05)
+      .d3VelocityDecay(0.4)
+      .warmupTicks(30)
+      .cooldownTicks(50);
 
-    // Handle resize
     var ro = new ResizeObserver(function() {
       if (graph3dInstance && container.clientWidth > 0) {
         graph3dInstance.width(container.clientWidth).height(container.clientHeight || 500);
       }
     });
     ro.observe(container);
+  }
+
+  function drillIntoDomain(container, domainNode) {
+    var cluster = domainNode.cluster;
+    if (!cluster || !cluster.items) return;
+
+    // Show drilldown panel
+    var panel = document.getElementById('graph3d-panel');
+    panel.style.width = '320px';
+
+    var h = '<div style="padding:.6rem;overflow-y:auto;height:100%">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">';
+    h += '<h4 style="font-size:.9rem;margin:0">' + esc(cluster.domain) + '</h4>';
+    h += '<button class="btn" data-action="close-panel" style="font-size:.7rem">Close</button></div>';
+    h += '<div style="font-size:.72rem;color:var(--text-m);margin-bottom:.6rem">' + cluster.count + ' items &middot; ' + cluster.bookmarks + ' bookmarks &middot; ' + cluster.history + ' history</div>';
+
+    // Timeline list of items
+    cluster.items.forEach(function(item) {
+      var isBookmark = item.type === 'bookmark';
+      var borderColor = isBookmark ? 'var(--accent)' : 'var(--amber)';
+      var d = new Date(item.date);
+      var dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+      h += '<div style="border-left:3px solid ' + borderColor + ';padding:.4rem .6rem;margin-bottom:.4rem;background:var(--bg-el);border-radius:0 6px 6px 0;cursor:pointer" data-link="' + esc(item.url) + '">';
+      h += '<div style="font-size:.78rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(item.title || '(untitled)') + '</div>';
+      h += '<div style="font-size:.68rem;color:var(--text-m)">' + dateStr + ' &middot; [' + (item.browser || '?').charAt(0) + '] ' + (isBookmark ? 'bookmark' : item.visits + ' visits') + '</div>';
+      if (item.summary) {
+        h += '<div style="font-size:.72rem;color:var(--text-s);margin-top:.2rem;line-height:1.35">' + esc(String(item.summary).substring(0, 120)) + '</div>';
+      }
+      h += '</div>';
+    });
+    h += '</div>';
+    panel.innerHTML = h;
+
+    // Zoom camera to domain node
+    if (graph3dInstance && domainNode.x !== undefined) {
+      var dist = 60;
+      var ratio = 1 + dist / Math.hypot(domainNode.x || 0, domainNode.y || 0, domainNode.z || 0.1);
+      graph3dInstance.cameraPosition(
+        { x: (domainNode.x||0) * ratio, y: (domainNode.y||0) * ratio, z: (domainNode.z||0.1) * ratio },
+        domainNode, 1000
+      );
+    }
+
+    // Also expand cluster: add child nodes around domain
+    expandCluster(domainNode);
+  }
+
+  function expandCluster(domainNode) {
+    var cluster = domainNode.cluster;
+    if (!cluster || !cluster.items) return;
+
+    var graphData = graph3dInstance.graphData();
+    var existing = graphData.nodes.map(function(n) { return n.id; });
+
+    // Add child nodes around the domain node (max 20)
+    var items = cluster.items.slice(0, 20);
+    var newNodes = [];
+    var newLinks = [];
+
+    items.forEach(function(item, i) {
+      var childId = 'item:' + item.url;
+      if (existing.indexOf(childId) >= 0) return;
+
+      var angle = (i / items.length) * Math.PI * 2;
+      var radius = 15 + Math.random() * 10;
+      newNodes.push({
+        id: childId,
+        label: item.title || shortUrl(item.url),
+        group: item.type === 'bookmark' ? 'bookmark' : 'historyItem',
+        size: 1.5,
+        url: item.url,
+        fx: (domainNode.fx || 0) + Math.cos(angle) * radius,
+        fy: (domainNode.fy || 0) + Math.sin(angle) * radius * 0.6,
+        fz: (domainNode.fz || 0) + (Math.random() - 0.5) * 10,
+      });
+      newLinks.push({ source: domainNode.id, target: childId });
+    });
+
+    graph3dInstance.graphData({
+      nodes: graphData.nodes.concat(newNodes),
+      links: graphData.links.concat(newLinks)
+    });
+  }
+
+  function collapseToOverview() {
+    var panel = document.getElementById('graph3d-panel');
+    if (panel) panel.style.width = '0';
+    if (graph3dData && graph3dData.clusters) {
+      var container = document.getElementById('graph3d-container');
+      if (container) renderDomainClusters(container, graph3dData.clusters);
+    }
   }
 
   // ══════════════════════════════════════════
@@ -661,8 +794,11 @@
     if (t.dataset.action === 'goto-import') { switchView('import'); return; }
     if (t.dataset.action === 'run-batch') { runBatch(10); return; }
     if (t.dataset.action === 'run-batch-50') { runBatch(50); return; }
-    if (t.dataset.action === 'graph-reset' && graph3dInstance) { graph3dInstance.cameraPosition({x:0,y:0,z:300}, {x:0,y:0,z:0}, 1000); return; }
-    if (t.dataset.action === 'graph-top' && graph3dInstance) { graph3dInstance.cameraPosition({x:0,y:300,z:0}, {x:0,y:0,z:0}, 1000); return; }
+    if (t.dataset.action === 'graph-reset' && graph3dInstance) { graph3dInstance.cameraPosition({x:0,y:0,z:400}, {x:0,y:0,z:0}, 1000); return; }
+    if (t.dataset.action === 'graph-top' && graph3dInstance) { graph3dInstance.cameraPosition({x:0,y:400,z:0}, {x:0,y:0,z:0}, 1000); return; }
+    if (t.dataset.action === 'graph-back') { collapseToOverview(); return; }
+    if (t.dataset.action === 'close-panel') { var p=document.getElementById('graph3d-panel'); if(p) p.style.width='0'; return; }
+    if (t.closest('[data-link]')) { invoke('open_url', { url: t.closest('[data-link]').dataset.link }); return; }
     if (t.dataset.pwDomain) { doViewPassword(t.dataset.pwDomain); return; }
   });
 

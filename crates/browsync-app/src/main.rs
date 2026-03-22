@@ -22,6 +22,7 @@ fn main() {
             commands::view_password,
             commands::get_graph_data,
             commands::get_3d_graph_data,
+            commands::get_3d_timeline_data,
             commands::summarize_url,
             commands::summarize_batch,
             commands::get_summaries,

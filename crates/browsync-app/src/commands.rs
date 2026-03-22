@@ -601,6 +601,123 @@ pub fn get_3d_graph_data() -> Result<serde_json::Value, String> {
     }))
 }
 
+/// Rich timeline data for 3D clustered graph
+#[tauri::command]
+pub fn get_3d_timeline_data() -> Result<serde_json::Value, String> {
+    let db = db()?;
+    let bookmarks = db.get_bookmarks(None).map_err(|e| e.to_string())?;
+    let history = db.get_history(None, 5000).map_err(|e| e.to_string())?;
+    let summaries = db.get_all_summaries().unwrap_or_default();
+
+    // Group bookmarks by domain
+    let mut domains: std::collections::HashMap<String, Vec<serde_json::Value>> =
+        std::collections::HashMap::new();
+
+    for b in &bookmarks {
+        let domain = extract_domain_from_url(&b.url);
+        if domain.is_empty() {
+            continue;
+        }
+        let summary = summaries.get(&b.url).cloned();
+        domains.entry(domain).or_default().push(serde_json::json!({
+            "type": "bookmark",
+            "url": b.url,
+            "title": b.title,
+            "date": b.created_at.to_rfc3339(),
+            "timestamp": b.created_at.timestamp(),
+            "browser": serde_json::to_string(&b.source_browser).unwrap_or_default().trim_matches('"'),
+            "folder": b.folder_path.join("/"),
+            "summary": summary,
+        }));
+    }
+
+    // Add history visits to domains
+    for h in &history {
+        let domain = extract_domain_from_url(&h.url);
+        if domain.is_empty() {
+            continue;
+        }
+        let entry = domains.entry(domain).or_default();
+        // Only add if not already a bookmark for same URL
+        if !entry.iter().any(|e| e["url"].as_str() == Some(&h.url)) {
+            entry.push(serde_json::json!({
+                "type": "history",
+                "url": h.url,
+                "title": h.title,
+                "date": h.last_visited.to_rfc3339(),
+                "timestamp": h.last_visited.timestamp(),
+                "visits": h.visit_count,
+                "browser": serde_json::to_string(&h.source_browser).unwrap_or_default().trim_matches('"'),
+                "summary": summaries.get(&h.url),
+            }));
+        }
+    }
+
+    // Build domain clusters sorted by total items
+    let mut clusters: Vec<serde_json::Value> = domains
+        .into_iter()
+        .filter(|(_, items)| !items.is_empty())
+        .map(|(domain, mut items)| {
+            items.sort_by(|a, b| {
+                a["timestamp"]
+                    .as_i64()
+                    .unwrap_or(0)
+                    .cmp(&b["timestamp"].as_i64().unwrap_or(0))
+            });
+            let first_ts = items
+                .first()
+                .and_then(|i| i["timestamp"].as_i64())
+                .unwrap_or(0);
+            let last_ts = items
+                .last()
+                .and_then(|i| i["timestamp"].as_i64())
+                .unwrap_or(0);
+            let bookmark_count = items.iter().filter(|i| i["type"] == "bookmark").count();
+            let history_count = items.iter().filter(|i| i["type"] == "history").count();
+            let total_visits: u64 = items.iter().filter_map(|i| i["visits"].as_u64()).sum();
+
+            serde_json::json!({
+                "domain": domain,
+                "items": items,
+                "count": items.len(),
+                "bookmarks": bookmark_count,
+                "history": history_count,
+                "totalVisits": total_visits,
+                "firstTimestamp": first_ts,
+                "lastTimestamp": last_ts,
+            })
+        })
+        .collect();
+
+    clusters.sort_by(|a, b| {
+        b["count"]
+            .as_u64()
+            .unwrap_or(0)
+            .cmp(&a["count"].as_u64().unwrap_or(0))
+    });
+
+    // Keep top 100 domains
+    clusters.truncate(100);
+
+    // Global timeline bounds
+    let min_ts = clusters
+        .iter()
+        .filter_map(|c| c["firstTimestamp"].as_i64())
+        .min()
+        .unwrap_or(0);
+    let max_ts = clusters
+        .iter()
+        .filter_map(|c| c["lastTimestamp"].as_i64())
+        .max()
+        .unwrap_or(0);
+
+    Ok(serde_json::json!({
+        "clusters": clusters,
+        "minTimestamp": min_ts,
+        "maxTimestamp": max_ts,
+    }))
+}
+
 fn extract_domain_from_url(url: &str) -> String {
     url.replace("https://", "")
         .replace("http://", "")
